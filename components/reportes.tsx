@@ -37,6 +37,7 @@ export default function Reportes() {
   const [categorias, setCategorias] = useState<CategoriaOut[]>([])
   const [loading, setLoading] = useState(true)
   const [generando, setGenerando] = useState(false)
+  const [vistaPreviaVisible, setVistaPreviaVisible] = useState(false)
 
   const [filtros, setFiltros] = useState<FiltrosReporte>({
     tipo: "todos",
@@ -76,7 +77,8 @@ export default function Reportes() {
 
     // Filtrar por tipo
     if (filtros.tipo !== "todos") {
-      resultado = resultado.filter((registro) => registro.tipo_movimiento.toLowerCase() === filtros.tipo)
+      const tipoFiltrado = filtros.tipo.slice(0, -1)
+      resultado = resultado.filter((registro) => registro.tipo_movimiento.toLowerCase() === tipoFiltrado)
     }
 
     // Filtrar por fecha
@@ -105,7 +107,7 @@ export default function Reportes() {
           await generarReportePDF(registrosFiltrados, filtros, proveedores, categorias)
           break
         case "inventario":
-          await generarReporteInventarioPDF(registrosFiltrados, filtros, categorias)
+          await generarReporteInventarioPDF(registrosFiltrados, filtros, categorias, proveedores)
           break
         case "comparativo":
           await generarReporteComparativoPDF(registrosFiltrados, filtros, proveedores)
@@ -135,8 +137,8 @@ export default function Reportes() {
   const registrosFiltrados = aplicarFiltros()
   const totalEntradas = registrosFiltrados.filter((r) => r.tipo_movimiento === "ENTRADA")
   const totalSalidas = registrosFiltrados.filter((r) => r.tipo_movimiento === "SALIDA")
-  const valorTotalEntradas = totalEntradas.reduce((sum, r) => sum + r.total, 0)
-  const valorTotalSalidas = totalSalidas.reduce((sum, r) => sum + r.total, 0)
+  const valorTotalEntradas = totalEntradas.reduce((sum, r) => sum + Number(r.total || 0), 0)
+  const valorTotalSalidas = totalSalidas.reduce((sum, r) => sum + Number(r.total || 0), 0)
 
   if (loading) {
     return <div className="p-6">Cargando datos para reportes...</div>
@@ -281,10 +283,19 @@ export default function Reportes() {
                   <p className="text-sm text-gray-600">Salidas</p>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <p className="text-2xl font-bold text-purple-600">
-                    ${(valorTotalEntradas - valorTotalSalidas).toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-600">Balance</p>
+                  <div className="flex justify-between text-sm">
+                    <span>Valor Total Entradas</span>
+                    <span className="font-medium text-green-600">${valorTotalEntradas.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Valor Total Salidas</span>
+                    <span className="font-medium text-red-600">${valorTotalSalidas.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-gray-200 my-2"></div>
+                  <div className="flex justify-between text-sm font-bold">
+                    <span>Balance</span>
+                    <span>${(valorTotalEntradas - valorTotalSalidas).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -330,9 +341,13 @@ export default function Reportes() {
                       <Download className="w-4 h-4" />
                       <span>{generando ? "Generando..." : "Generar PDF"}</span>
                     </Button>
-                    <Button variant="outline" className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      className="flex items-center space-x-2"
+                      onClick={() => setVistaPreviaVisible(!vistaPreviaVisible)}
+                    >
                       <Eye className="w-4 h-4" />
-                      <span>Vista previa</span>
+                      <span>{vistaPreviaVisible ? "Ocultar" : "Vista previa"}</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -370,9 +385,13 @@ export default function Reportes() {
                       <Download className="w-4 h-4" />
                       <span>{generando ? "Generando..." : "Generar PDF"}</span>
                     </Button>
-                    <Button variant="outline" className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      className="flex items-center space-x-2"
+                      onClick={() => setVistaPreviaVisible(!vistaPreviaVisible)}
+                    >
                       <Eye className="w-4 h-4" />
-                      <span>Vista previa</span>
+                      <span>{vistaPreviaVisible ? "Ocultar" : "Vista previa"}</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -410,9 +429,13 @@ export default function Reportes() {
                       <Download className="w-4 h-4" />
                       <span>{generando ? "Generando..." : "Generar PDF"}</span>
                     </Button>
-                    <Button variant="outline" className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      className="flex items-center space-x-2"
+                      onClick={() => setVistaPreviaVisible(!vistaPreviaVisible)}
+                    >
                       <Eye className="w-4 h-4" />
-                      <span>Vista previa</span>
+                      <span>{vistaPreviaVisible ? "Ocultar" : "Vista previa"}</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -421,61 +444,78 @@ export default function Reportes() {
           </Tabs>
 
           {/* Vista previa de datos */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Vista Previa de Datos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comprobante</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Proveedor/Destino
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {registrosFiltrados.slice(0, 5).map((registro) => (
-                      <tr key={registro.idregistro}>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          {new Date(registro.fecha).toLocaleDateString("es-ES")}
+          {vistaPreviaVisible && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Vista Previa de Datos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comprobante</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proveedor</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destino</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {registrosFiltrados.slice(0, 10).map((registro) => (
+                        <tr key={registro.idregistro}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {new Date(registro.fecha).toLocaleDateString("es-ES")}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <Badge
+                              className={
+                                registro.tipo_movimiento === "ENTRADA"
+                                  ? "bg-green-100 text-green-800 border-green-200"
+                                  : "bg-red-100 text-red-800 border-red-200"
+                              }
+                            >
+                              {registro.tipo_movimiento}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">#{registro.nro_comprobante}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {registro.tipo_movimiento === "ENTRADA"
+                              ? registro.proveedor ||
+                                proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor ||
+                                "-"
+                              : "-"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {registro.tipo_movimiento === "SALIDA" ? registro.proveedor : "-"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium">
+                            ${Number(registro.total || 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr>
+                        <td colSpan={5} className="px-4 py-3 text-right font-bold">
+                          Total General:
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <Badge
-                            variant={registro.tipo_movimiento === "ENTRADA" ? "outline" : "destructive"}
-                            className={
-                              registro.tipo_movimiento === "ENTRADA"
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : "bg-red-50 text-red-700 border-red-200"
-                            }
-                          >
-                            {registro.tipo_movimiento}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">#{registro.nro_comprobante}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          {registro.tipo_movimiento === "ENTRADA" ? registro.proveedor : registro.destino}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium">
-                          ${registro.total.toFixed(2)}
+                        <td className="px-4 py-3 text-right font-bold">
+                          ${(valorTotalEntradas - valorTotalSalidas).toFixed(2)}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {registrosFiltrados.length > 5 && (
-                  <p className="text-center text-gray-500 text-sm mt-4">
-                    ... y {registrosFiltrados.length - 5} registros más
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                    </tfoot>
+                  </table>
+                  {registrosFiltrados.length > 10 && (
+                    <p className="text-center text-gray-500 text-sm mt-4">
+                      ... y {registrosFiltrados.length - 10} registros más
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

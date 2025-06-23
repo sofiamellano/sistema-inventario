@@ -1,6 +1,7 @@
 import jsPDF from "jspdf"
-import "jspdf-autotable"
+import autoTable from "jspdf-autotable"
 import type { RegistroConDetalles, ProveedorOut, CategoriaOut } from "./api"
+import { obtenerArticulos } from "./api"
 
 // Extender el tipo jsPDF para incluir autoTable
 declare module "jspdf" {
@@ -99,8 +100,8 @@ export const generarReportePDF = async (
 
     const totalEntradas = registros.filter((r) => r.tipo_movimiento === "ENTRADA")
     const totalSalidas = registros.filter((r) => r.tipo_movimiento === "SALIDA")
-    const valorEntradas = totalEntradas.reduce((sum, r) => sum + r.total, 0)
-    const valorSalidas = totalSalidas.reduce((sum, r) => sum + r.total, 0)
+    const valorEntradas = totalEntradas.reduce((sum, r) => sum + Number(r.total || 0), 0)
+    const valorSalidas = totalSalidas.reduce((sum, r) => sum + Number(r.total || 0), 0)
 
     doc.setFontSize(10)
     doc.text(`Total de movimientos: ${registros.length}`, 20, yPosition)
@@ -114,17 +115,20 @@ export const generarReportePDF = async (
   }
 
   // Tabla de movimientos
-  const columnas = ["Fecha", "Tipo", "Comprobante", "Proveedor/Destino", "Usuario", "Total"]
+  const columnas = ["Fecha", "Tipo", "Comprobante", "Proveedor", "Destino", "Usuario", "Total"]
   const filas = registros.map((registro) => [
     new Date(registro.fecha).toLocaleDateString("es-ES"),
     registro.tipo_movimiento,
     `#${registro.nro_comprobante}`,
-    registro.tipo_movimiento === "ENTRADA" ? registro.proveedor || "" : registro.destino || "",
+    registro.tipo_movimiento === "ENTRADA"
+      ? registro.proveedor || proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor || ""
+      : "-",
+    registro.tipo_movimiento === "SALIDA" ? registro.proveedor || "" : "-",
     registro.usuario,
-    `$${registro.total.toFixed(2)}`,
+    `$${Number(registro.total || 0).toFixed(2)}`,
   ])
 
-  doc.autoTable({
+  autoTable(doc, {
     head: [columnas],
     body: filas,
     startY: yPosition,
@@ -144,9 +148,10 @@ export const generarReportePDF = async (
       0: { cellWidth: 25 },
       1: { cellWidth: 20 },
       2: { cellWidth: 25 },
-      3: { cellWidth: 40 },
-      4: { cellWidth: 25 },
-      5: { cellWidth: 25, halign: "right" },
+      3: { cellWidth: 30 },
+      4: { cellWidth: 30 },
+      5: { cellWidth: 20 },
+      6: { cellWidth: 20, halign: "right" },
     },
   })
 
@@ -174,13 +179,13 @@ export const generarReportePDF = async (
 
       const columnasDetalle = ["Artículo", "Cantidad", "Precio Unit.", "Total"]
       const filasDetalle = registro.detalles.map((detalle) => [
-        detalle.articulo,
+        detalle.articulo || "",
         detalle.cantidad.toString(),
-        `$${detalle.precio_unitario.toFixed(2)}`,
-        `$${detalle.total.toFixed(2)}`,
+        `$${Number(detalle.precio_unitario).toFixed(2)}`,
+        `$${Number(detalle.total).toFixed(2)}`,
       ])
 
-      doc.autoTable({
+      autoTable(doc, {
         head: [columnasDetalle],
         body: filasDetalle,
         startY: currentY,
@@ -220,6 +225,7 @@ export const generarReporteInventarioPDF = async (
   registros: RegistroConDetalles[],
   filtros: FiltrosReporte,
   categorias: CategoriaOut[],
+  proveedores: ProveedorOut[],
 ) => {
   const doc = new jsPDF()
   let yPosition = configurarPDF(doc, "Reporte de Estado de Inventario")
@@ -230,24 +236,37 @@ export const generarReporteInventarioPDF = async (
   doc.text("Estado Actual del Inventario:", 20, yPosition)
   yPosition += 15
 
-  // Aquí simularemos datos de inventario actual
-  // En una implementación real, estos datos vendrían de la API
-  const datosInventario = [
-    { articulo: 'Monitor LED 24"', categoria: "Tecnología", stock: 10, precio: 189.99, valor: 1899.9 },
-    { articulo: "Teclado Mecánico", categoria: "Tecnología", stock: 5, precio: 79.99, valor: 399.95 },
-    { articulo: "Mouse Inalámbrico", categoria: "Tecnología", stock: 15, precio: 29.99, valor: 449.85 },
-  ]
+  // Obtener los datos reales del inventario desde la API
+  const articulos = await obtenerArticulos()
 
-  const columnas = ["Artículo", "Categoría", "Stock", "Precio Unit.", "Valor Total"]
+  const datosInventario = articulos.map((item) => {
+    const categoriaNombre = categorias.find((c) => c.idcategoria === item.idcategoria)?.categoria || "Sin categoría"
+    const proveedorNombre = proveedores.find((p) => p.idproveedor === item.idproveedor)?.proveedor || "Sin proveedor"
+    const stock = Number(item.stock_actual)
+    const precio = Number(item.precio_venta)
+    const valor = stock * precio
+
+    return {
+      articulo: item.articulo,
+      categoria: categoriaNombre,
+      proveedor: proveedorNombre,
+      stock,
+      precio,
+      valor,
+    }
+  })
+
+  const columnas = ["Artículo", "Categoría", "Proveedor", "Stock", "Precio Unit.", "Valor Total"]
   const filas = datosInventario.map((item) => [
     item.articulo,
     item.categoria,
+    item.proveedor,
     item.stock.toString(),
     `$${item.precio.toFixed(2)}`,
     `$${item.valor.toFixed(2)}`,
   ])
 
-  doc.autoTable({
+  autoTable(doc, {
     head: [columnas],
     body: filas,
     startY: yPosition,
@@ -264,11 +283,12 @@ export const generarReporteInventarioPDF = async (
       fillColor: [248, 249, 250],
     },
     columnStyles: {
-      0: { cellWidth: 60 },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 20, halign: "center" },
-      3: { cellWidth: 25, halign: "right" },
+      0: { cellWidth: 50 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 25 },
+      3: { cellWidth: 15, halign: "center" },
       4: { cellWidth: 25, halign: "right" },
+      5: { cellWidth: 25, halign: "right" },
     },
   })
 
@@ -307,8 +327,8 @@ export const generarReporteComparativoPDF = async (
   // Análisis comparativo
   const entradas = registros.filter((r) => r.tipo_movimiento === "ENTRADA")
   const salidas = registros.filter((r) => r.tipo_movimiento === "SALIDA")
-  const valorEntradas = entradas.reduce((sum, r) => sum + r.total, 0)
-  const valorSalidas = salidas.reduce((sum, r) => sum + r.total, 0)
+  const valorEntradas = entradas.reduce((sum, r) => sum + Number(r.total || 0), 0)
+  const valorSalidas = salidas.reduce((sum, r) => sum + Number(r.total || 0), 0)
 
   doc.setFontSize(12)
   doc.setTextColor(40, 40, 40)
@@ -338,7 +358,7 @@ export const generarReporteComparativoPDF = async (
     ],
   ]
 
-  doc.autoTable({
+  autoTable(doc, {
     body: datosComparativos,
     startY: yPosition,
     styles: {
@@ -366,7 +386,7 @@ export const generarReporteComparativoPDF = async (
 
   const analisisProveedores = proveedores.map((proveedor) => {
     const movimientosProveedor = entradas.filter((e) => e.idproveedor === proveedor.idproveedor)
-    const valorProveedor = movimientosProveedor.reduce((sum, m) => sum + m.total, 0)
+    const valorProveedor = movimientosProveedor.reduce((sum, m) => sum + Number(m.total || 0), 0)
     return {
       proveedor: proveedor.proveedor,
       movimientos: movimientosProveedor.length,
@@ -381,7 +401,7 @@ export const generarReporteComparativoPDF = async (
     `${((item.valor / valorEntradas) * 100).toFixed(1)}%`,
   ])
 
-  doc.autoTable({
+  autoTable(doc, {
     head: [["Proveedor", "Movimientos", "Valor Total", "% del Total"]],
     body: filasProveedores,
     startY: currentY + 10,

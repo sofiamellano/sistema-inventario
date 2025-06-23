@@ -21,18 +21,6 @@ export default function Header({ title }: HeaderProps) {
           />
           <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
         </div>
-        <div className="relative">
-          <button className="p-2 rounded-full hover:bg-gray-200">
-            <Bell className="w-5 h-5 text-gray-600" />
-            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500"></span>
-          </button>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
-            JP
-          </div>
-          <span className="hidden md:block">Juan Pérez</span>
-        </div>
       </div>
     </header>
   )

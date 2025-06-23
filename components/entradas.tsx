@@ -16,6 +16,7 @@ import {
   type ArticuloOut,
   type RegistroPayload,
   type DetallePayload,
+  type ArticuloPayload,
 } from "@/lib/api"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -59,7 +60,14 @@ export default function Entradas() {
   const cargarDatos = async () => {
     try {
       setLoading(true)
+      console.log("cargarDatos - Iniciando carga de datos")
+      
       const [proveedoresData, articulosData] = await Promise.all([obtenerProveedores(), obtenerArticulos()])
+      
+      console.log("cargarDatos - Proveedores cargados:", proveedoresData.length)
+      console.log("cargarDatos - Artículos cargados:", articulosData.length)
+      console.log("cargarDatos - Primeros 3 artículos:", articulosData.slice(0, 3))
+      
       setProveedores(proveedoresData)
       setArticulos(articulosData)
     } catch (error) {
@@ -70,19 +78,50 @@ export default function Entradas() {
   }
 
   const agregarDetalle = () => {
-    if (nuevoDetalle.idarticulo === 0) return
+    console.log("agregarDetalle - nuevoDetalle:", nuevoDetalle)
+    console.log("agregarDetalle - articulos disponibles:", articulos.length)
+    console.log("agregarDetalle - articulos:", articulos)
+    
+    if (nuevoDetalle.idarticulo === 0) {
+      console.log("agregarDetalle - No se seleccionó artículo")
+      alert("Debe seleccionar un artículo")
+      return
+    }
 
-    const articulo = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo)
-    if (!articulo) return
+    // Buscar el artículo con comparación explícita de tipos
+    const articulo = articulos.find((a) => Number(a.idarticulo) === Number(nuevoDetalle.idarticulo))
+    console.log("agregarDetalle - artículo encontrado:", articulo)
+    console.log("agregarDetalle - buscando id:", nuevoDetalle.idarticulo, "tipo:", typeof nuevoDetalle.idarticulo)
+    
+    if (!articulo) {
+      console.log("agregarDetalle - No se encontró el artículo")
+      console.log("agregarDetalle - IDs disponibles:", articulos.map(a => ({ id: a.idarticulo, tipo: typeof a.idarticulo, nombre: a.articulo })))
+      alert("No se encontró el artículo seleccionado")
+      return
+    }
 
     // Verificar si el artículo ya está en la lista
-    const existeDetalle = detalles.find((d) => d.idarticulo === nuevoDetalle.idarticulo)
+    const existeDetalle = detalles.find((d) => Number(d.idarticulo) === Number(nuevoDetalle.idarticulo))
     if (existeDetalle) {
+      console.log("agregarDetalle - Artículo ya existe en la lista")
       alert("Este artículo ya está agregado a la entrada")
       return
     }
 
+    if (nuevoDetalle.cantidad <= 0) {
+      console.log("agregarDetalle - Cantidad inválida")
+      alert("La cantidad debe ser mayor a 0")
+      return
+    }
+
+    if (nuevoDetalle.precio_unitario < 0) {
+      console.log("agregarDetalle - Precio inválido")
+      alert("El precio unitario no puede ser negativo")
+      return
+    }
+
     const total = nuevoDetalle.cantidad * nuevoDetalle.precio_unitario
+    console.log("agregarDetalle - Total calculado:", total)
 
     const detalle: DetalleEntrada = {
       idarticulo: nuevoDetalle.idarticulo,
@@ -92,12 +131,14 @@ export default function Entradas() {
       total,
     }
 
+    console.log("agregarDetalle - Detalle a agregar:", detalle)
     setDetalles([...detalles, detalle])
     setNuevoDetalle({
       idarticulo: 0,
       cantidad: 1,
       precio_unitario: 0,
     })
+    console.log("agregarDetalle - Detalle agregado exitosamente")
   }
 
   const eliminarDetalle = (index: number) => {
@@ -129,6 +170,7 @@ export default function Entradas() {
       setSaving(true)
 
       const proveedor = proveedores.find((p) => p.idproveedor === registroData.idproveedor)
+      const totalEntrada = calcularTotal()
 
       // Crear el registro principal
       const registroPayload: RegistroPayload = {
@@ -136,13 +178,13 @@ export default function Entradas() {
         tipo_movimiento: "ENTRADA",
         proveedor: proveedor?.proveedor || "",
         fecha: registroData.fecha,
-        nro_comprobante: Number.parseInt(registroData.nro_comprobante),
+        nro_comprobante: Number(registroData.nro_comprobante),
         usuario: registroData.usuario,
       }
 
       const registroCreado = await crearRegistro(registroPayload)
 
-      // Crear los detalles
+      // Crear los detalles y actualizar stock
       for (const detalle of detalles) {
         const detallePayload: DetallePayload = {
           idregistro: registroCreado.idregistro,
@@ -158,10 +200,15 @@ export default function Entradas() {
         const articulo = articulos.find((a) => a.idarticulo === detalle.idarticulo)
         if (articulo) {
           const nuevoStock = articulo.stock_actual + detalle.cantidad
-          await actualizarArticulo(articulo.idarticulo, {
-            ...articulo,
+          const updatePayload: ArticuloPayload = {
+            articulo: articulo.articulo,
+            idcategoria: articulo.idcategoria,
+            idproveedor: articulo.idproveedor,
+            descripcion: articulo.descripcion,
+            precio_venta: Number(articulo.precio_venta),
             stock_actual: nuevoStock,
-          })
+          }
+          await actualizarArticulo(articulo.idarticulo, updatePayload)
         }
       }
 
@@ -212,7 +259,7 @@ export default function Entradas() {
                   <Label htmlFor="proveedor">Proveedor</Label>
                   <Select
                     value={registroData.idproveedor.toString()}
-                    onValueChange={(value) => setRegistroData({ ...registroData, idproveedor: Number.parseInt(value) })}
+                    onValueChange={(value) => setRegistroData({ ...registroData, idproveedor: Number(value) })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar proveedor" />
@@ -266,7 +313,12 @@ export default function Entradas() {
                   <Label htmlFor="articulo">Artículo</Label>
                   <Select
                     value={nuevoDetalle.idarticulo.toString()}
-                    onValueChange={(value) => setNuevoDetalle({ ...nuevoDetalle, idarticulo: Number.parseInt(value) })}
+                    onValueChange={(value) => {
+                      console.log("Select artículo - valor seleccionado:", value, "tipo:", typeof value)
+                      const idArticulo = Number(value)
+                      console.log("Select artículo - id convertido:", idArticulo, "tipo:", typeof idArticulo)
+                      setNuevoDetalle({ ...nuevoDetalle, idarticulo: idArticulo })
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar artículo" />
@@ -286,8 +338,11 @@ export default function Entradas() {
                     id="cantidad"
                     type="number"
                     min="1"
-                    value={nuevoDetalle.cantidad}
-                    onChange={(e) => setNuevoDetalle({ ...nuevoDetalle, cantidad: Number.parseInt(e.target.value) })}
+                    value={nuevoDetalle.cantidad || ""}
+                    onChange={(e) => {
+                      const valor = e.target.value === "" ? 0 : Number(e.target.value)
+                      setNuevoDetalle({ ...nuevoDetalle, cantidad: valor })
+                    }}
                   />
                 </div>
                 <div>
@@ -297,10 +352,11 @@ export default function Entradas() {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={nuevoDetalle.precio_unitario}
-                    onChange={(e) =>
-                      setNuevoDetalle({ ...nuevoDetalle, precio_unitario: Number.parseFloat(e.target.value) })
-                    }
+                    value={nuevoDetalle.precio_unitario || ""}
+                    onChange={(e) => {
+                      const valor = e.target.value === "" ? 0 : Number(e.target.value)
+                      setNuevoDetalle({ ...nuevoDetalle, precio_unitario: valor })
+                    }}
                   />
                 </div>
                 <div className="flex items-end">

@@ -95,9 +95,9 @@ export default function Dashboard() {
       const articulosCategoria = articulos.filter((a) => a.idcategoria === categoria.idcategoria)
       return {
         categoria: categoria.categoria,
-        stock: articulosCategoria.reduce((sum, a) => sum + a.stock_actual, 0),
+        stock: articulosCategoria.reduce((sum, a) => sum + Number(a.stock_actual), 0),
         articulos: articulosCategoria.length,
-        valor: articulosCategoria.reduce((sum, a) => sum + a.stock_actual * a.precio_venta, 0),
+        valor: articulosCategoria.reduce((sum, a) => sum + Number(a.stock_actual) * Number(a.precio_venta), 0),
       }
     })
     setStockPorCategoria(datos)
@@ -108,13 +108,14 @@ export default function Dashboard() {
       const articulosCategoria = articulos.filter((a) => a.idcategoria === categoria.idcategoria)
       return {
         name: categoria.categoria,
-        value: articulosCategoria.reduce((sum, a) => sum + a.stock_actual * a.precio_venta, 0),
+        value: articulosCategoria.reduce((sum, a) => sum + Number(a.stock_actual) * Number(a.precio_venta), 0),
         articulos: articulosCategoria.length,
       }
     })
     setValorInventario(datos)
   }
 
+  // FUNCIÓN CORREGIDA
   const procesarTendenciaMovimientos = (registros: RegistroConDetalles[]) => {
     const datos = []
     for (let i = 6; i >= 0; i--) {
@@ -124,10 +125,20 @@ export default function Dashboard() {
       const movimientosDia = registros.filter((r) => r.fecha === fechaStr)
       const entradas = movimientosDia.filter((r) => r.tipo_movimiento === "ENTRADA")
       const salidas = movimientosDia.filter((r) => r.tipo_movimiento === "SALIDA")
+      
+      // CORRECCIÓN: Sumar el total de los detalles de cada registro
+      const totalEntradas = entradas.reduce((sum, r) => {
+        return sum + r.detalles.reduce((detSum, detalle) => detSum + detalle.total, 0)
+      }, 0)
+      
+      const totalSalidas = salidas.reduce((sum, r) => {
+        return sum + r.detalles.reduce((detSum, detalle) => detSum + detalle.total, 0)
+      }, 0)
+
       datos.push({
         fecha: fecha.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" }),
-        entradas: entradas.reduce((sum, r) => sum + r.total, 0),
-        salidas: salidas.reduce((sum, r) => sum + r.total, 0),
+        entradas: totalEntradas,
+        salidas: totalSalidas,
         movimientos: movimientosDia.length,
       })
     }
@@ -257,7 +268,7 @@ export default function Dashboard() {
                         {articulo.stock_actual}
                       </span>
                     </td>
-                    <td className="px-4 py-3">${articulo.precio_venta.toFixed(2)}</td>
+                    <td className="px-4 py-3">${Number(articulo.precio_venta).toFixed(2)}</td>
                     <td className="px-4 py-3"><button className="text-blue-500 hover:text-blue-700 text-sm">Solicitar</button></td>
                   </tr>
                 )) : (

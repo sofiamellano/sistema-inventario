@@ -8,7 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { obtenerRegistrosConDetalles, type RegistroConDetalles } from "@/lib/api"
+import {
+  obtenerRegistrosConDetalles,
+  type RegistroConDetalles,
+  obtenerProveedores,
+  type ProveedorOut,
+} from "@/lib/api"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -20,6 +25,7 @@ export default function Registros() {
   const [filteredRegistros, setFilteredRegistros] = useState<RegistroConDetalles[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedRegistro, setExpandedRegistro] = useState<number | null>(null)
+  const [proveedores, setProveedores] = useState<ProveedorOut[]>([])
 
   // Filtros
   const [filtros, setFiltros] = useState({
@@ -40,9 +46,10 @@ export default function Registros() {
   const cargarRegistros = async () => {
     try {
       setLoading(true)
-      const data = await obtenerRegistrosConDetalles()
+      const [data, proveedoresData] = await Promise.all([obtenerRegistrosConDetalles(), obtenerProveedores()])
       setRegistros(data)
       setFilteredRegistros(data)
+      setProveedores(proveedoresData)
     } catch (error) {
       console.error("Error al cargar registros:", error)
     } finally {
@@ -110,12 +117,13 @@ export default function Registros() {
 
   const exportarCSV = () => {
     // Crear encabezados
-    let csv = "ID,Tipo,Fecha,Comprobante,Proveedor/Destino,Usuario,Total\n"
+    let csv = "ID,Tipo,Fecha,Comprobante,Proveedor,Destino,Usuario,Total\n"
 
     // Agregar datos
     filteredRegistros.forEach((registro) => {
-      const proveedorDestino = registro.tipo_movimiento === "ENTRADA" ? registro.proveedor : registro.destino
-      csv += `${registro.idregistro},${registro.tipo_movimiento},${registro.fecha},${registro.nro_comprobante},"${proveedorDestino}",${registro.usuario},${registro.total}\n`
+      const proveedor = registro.tipo_movimiento === "ENTRADA" ? registro.proveedor : ""
+      const destino = registro.tipo_movimiento === "SALIDA" ? registro.proveedor : ""
+      csv += `${registro.idregistro},${registro.tipo_movimiento},${formatFecha(registro.fecha)},${registro.nro_comprobante},"${proveedor}","${destino}",${registro.usuario},${Number(registro.total).toFixed(2)}\n`
     })
 
     // Crear y descargar el archivo
@@ -267,14 +275,15 @@ export default function Registros() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead className="w-[80px]">ID</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Comprobante</TableHead>
-                    <TableHead>Proveedor/Destino</TableHead>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead>Destino</TableHead>
                     <TableHead>Usuario</TableHead>
                     <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="text-right">Detalles</TableHead>
+                    <TableHead className="w-[50px]">Detalles</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -284,11 +293,10 @@ export default function Registros() {
                         <TableCell>{registro.idregistro}</TableCell>
                         <TableCell>
                           <Badge
-                            variant={registro.tipo_movimiento === "ENTRADA" ? "outline" : "destructive"}
                             className={
                               registro.tipo_movimiento === "ENTRADA"
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : "bg-red-50 text-red-700 border-red-200"
+                                ? "bg-green-100 text-green-800 border-green-200"
+                                : "bg-red-100 text-red-800 border-red-200"
                             }
                           >
                             {registro.tipo_movimiento === "ENTRADA" ? (
@@ -302,12 +310,21 @@ export default function Registros() {
                         <TableCell>{formatFecha(registro.fecha)}</TableCell>
                         <TableCell>{registro.nro_comprobante}</TableCell>
                         <TableCell>
-                          {registro.tipo_movimiento === "ENTRADA" ? registro.proveedor : registro.destino}
+                          {registro.tipo_movimiento === "ENTRADA"
+                            ? registro.proveedor || proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor || "-"
+                            : "-"}
                         </TableCell>
+                        <TableCell>{registro.tipo_movimiento === "SALIDA" ? registro.proveedor : "-"}</TableCell>
                         <TableCell>{registro.usuario}</TableCell>
-                        <TableCell className="text-right font-medium">${registro.total.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => toggleExpandRegistro(registro.idregistro)}>
+                        <TableCell className="text-right font-medium">
+                          ${Number(registro.total).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleExpandRegistro(registro.idregistro)}
+                          >
                             {expandedRegistro === registro.idregistro ? (
                               <ChevronUp className="w-4 h-4" />
                             ) : (
@@ -318,42 +335,31 @@ export default function Registros() {
                       </TableRow>
                       {expandedRegistro === registro.idregistro && (
                         <TableRow>
-                          <TableCell colSpan={8} className="bg-gray-50 p-0">
-                            <div className="p-4">
-                              <h4 className="font-medium mb-2">Detalles del Movimiento</h4>
+                          <TableCell colSpan={9}>
+                            <div className="p-4 bg-gray-50 rounded-lg">
+                              <h4 className="font-semibold mb-2">Detalles del Movimiento</h4>
                               <Table>
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead>Artículo</TableHead>
                                     <TableHead>Cantidad</TableHead>
                                     <TableHead>Precio Unitario</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
+                                    <TableHead className="text-right">Subtotal</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {registro.detalles.map((detalle) => (
-                                    <TableRow key={detalle.iddetalle}>
+                                  {registro.detalles?.map((detalle, index) => (
+                                    <TableRow key={index}>
                                       <TableCell>{detalle.articulo}</TableCell>
                                       <TableCell>{detalle.cantidad}</TableCell>
-                                      <TableCell>${detalle.precio_unitario.toFixed(2)}</TableCell>
-                                      <TableCell className="text-right">${detalle.total.toFixed(2)}</TableCell>
+                                      <TableCell>${Number(detalle.precio_unitario).toFixed(2)}</TableCell>
+                                      <TableCell className="text-right">
+                                        ${Number(detalle.total).toFixed(2)}
+                                      </TableCell>
                                     </TableRow>
                                   ))}
-                                  <TableRow>
-                                    <TableCell colSpan={3} className="text-right font-medium">
-                                      Total:
-                                    </TableCell>
-                                    <TableCell className="text-right font-bold">${registro.total.toFixed(2)}</TableCell>
-                                  </TableRow>
                                 </TableBody>
                               </Table>
-                              {registro.tipo_movimiento === "SALIDA" && registro.motivo && (
-                                <div className="mt-4">
-                                  <p className="text-sm">
-                                    <span className="font-medium">Motivo:</span> {registro.motivo}
-                                  </p>
-                                </div>
-                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -388,7 +394,6 @@ export default function Registros() {
                     <AccordionTrigger>
                       <div className="flex items-center space-x-4">
                         <Badge
-                          variant={registro.tipo_movimiento === "ENTRADA" ? "outline" : "destructive"}
                           className={
                             registro.tipo_movimiento === "ENTRADA"
                               ? "bg-green-50 text-green-700 border-green-200"
@@ -417,7 +422,7 @@ export default function Registros() {
                             <p className="text-sm font-medium">
                               {registro.tipo_movimiento === "ENTRADA" ? "Proveedor:" : "Destino:"}
                             </p>
-                            <p>{registro.tipo_movimiento === "ENTRADA" ? registro.proveedor : registro.destino}</p>
+                            <p>{registro.tipo_movimiento === "ENTRADA" ? registro.proveedor : registro.proveedor}</p>
                           </div>
                           <div>
                             <p className="text-sm font-medium">Usuario:</p>
@@ -440,15 +445,15 @@ export default function Registros() {
                                 <TableRow key={detalle.iddetalle}>
                                   <TableCell>{detalle.articulo}</TableCell>
                                   <TableCell>{detalle.cantidad}</TableCell>
-                                  <TableCell>${detalle.precio_unitario.toFixed(2)}</TableCell>
-                                  <TableCell className="text-right">${detalle.total.toFixed(2)}</TableCell>
+                                  <TableCell>${Number(detalle.precio_unitario).toFixed(2)}</TableCell>
+                                  <TableCell className="text-right">${Number(detalle.total).toFixed(2)}</TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
                         </div>
                         <div className="flex justify-end">
-                          <p className="font-bold">Total: ${registro.total.toFixed(2)}</p>
+                          <p className="font-bold">Total: ${Number(registro.total || 0).toFixed(2)}</p>
                         </div>
                       </div>
                     </AccordionContent>
@@ -509,15 +514,15 @@ export default function Registros() {
                                   <TableRow key={detalle.iddetalle}>
                                     <TableCell>{detalle.articulo}</TableCell>
                                     <TableCell>{detalle.cantidad}</TableCell>
-                                    <TableCell>${detalle.precio_unitario.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">${detalle.total.toFixed(2)}</TableCell>
+                                    <TableCell>${Number(detalle.precio_unitario).toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">${Number(detalle.total).toFixed(2)}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
                             </Table>
                           </div>
                           <div className="flex justify-end">
-                            <p className="font-bold">Total: ${registro.total.toFixed(2)}</p>
+                            <p className="font-bold">Total: ${Number(registro.total || 0).toFixed(2)}</p>
                           </div>
                         </div>
                       </AccordionContent>
@@ -538,7 +543,7 @@ export default function Registros() {
                             SALIDA
                           </Badge>
                           <span>
-                            {formatFecha(registro.fecha)} - {registro.destino}
+                            {formatFecha(registro.fecha)} - {registro.proveedor}
                           </span>
                         </div>
                       </AccordionTrigger>
@@ -555,7 +560,7 @@ export default function Registros() {
                             </div>
                             <div>
                               <p className="text-sm font-medium">Destino:</p>
-                              <p>{registro.destino}</p>
+                              <p>{registro.proveedor}</p>
                             </div>
                             <div>
                               <p className="text-sm font-medium">Usuario:</p>
@@ -584,15 +589,15 @@ export default function Registros() {
                                   <TableRow key={detalle.iddetalle}>
                                     <TableCell>{detalle.articulo}</TableCell>
                                     <TableCell>{detalle.cantidad}</TableCell>
-                                    <TableCell>${detalle.precio_unitario.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">${detalle.total.toFixed(2)}</TableCell>
+                                    <TableCell>${Number(detalle.precio_unitario).toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">${Number(detalle.total).toFixed(2)}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
                             </Table>
                           </div>
                           <div className="flex justify-end">
-                            <p className="font-bold">Total: ${registro.total.toFixed(2)}</p>
+                            <p className="font-bold">Total: ${Number(registro.total || 0).toFixed(2)}</p>
                           </div>
                         </div>
                       </AccordionContent>

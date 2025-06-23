@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import {
   obtenerArticulos,
   obtenerCategorias,
+  obtenerProveedores,
   crearArticulo,
   actualizarArticulo,
-  eliminarArticulo, // ✅ nuevo import
+  eliminarArticulo,
+  crearProveedor,
   type ArticuloOut,
   type CategoriaOut,
   type ArticuloPayload,
@@ -19,14 +21,24 @@ import {
 export default function Articulos() {
   const [articulos, setArticulos] = useState<ArticuloOut[]>([])
   const [categorias, setCategorias] = useState<CategoriaOut[]>([])
+  const [proveedores, setProveedores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingArticulo, setEditingArticulo] = useState<ArticuloOut | null>(null)
   const [filtros, setFiltros] = useState({ categoria: "", busqueda: "" })
+  
+  // Estados para crear nuevo proveedor
+  const [showProveedorModal, setShowProveedorModal] = useState(false)
+  const [nuevoProveedor, setNuevoProveedor] = useState({
+    proveedor: "",
+    direccion: "",
+    telefono: "",
+  })
 
   const [formData, setFormData] = useState<ArticuloPayload>({
     articulo: "",
     idcategoria: 0,
+    idproveedor: 0,
     descripcion: "",
     precio_venta: 0,
     stock_actual: 0,
@@ -38,9 +50,10 @@ export default function Articulos() {
 
   const cargarDatos = async () => {
     try {
-      const [articulosData, categoriasData] = await Promise.all([obtenerArticulos(), obtenerCategorias()])
+      const [articulosData, categoriasData, proveedoresData] = await Promise.all([obtenerArticulos(), obtenerCategorias(), obtenerProveedores()])
       setArticulos(articulosData)
       setCategorias(categoriasData)
+      setProveedores(proveedoresData)
     } catch (error) {
       console.error("Error al cargar datos:", error)
     } finally {
@@ -51,9 +64,14 @@ export default function Articulos() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      console.log("Datos del formulario:", formData)
+      console.log("Editando artículo:", editingArticulo)
+      
       if (editingArticulo) {
+        console.log("Actualizando artículo con ID:", editingArticulo.idarticulo)
         await actualizarArticulo(editingArticulo.idarticulo, formData)
       } else {
+        console.log("Creando nuevo artículo")
         await crearArticulo(formData)
       }
       await cargarDatos()
@@ -61,6 +79,7 @@ export default function Articulos() {
       resetForm()
     } catch (error) {
       console.error("Error al guardar artículo:", error)
+      alert("Error al guardar el artículo: " + (error instanceof Error ? error.message : "Error desconocido"))
     }
   }
 
@@ -75,10 +94,35 @@ export default function Articulos() {
     }
   }
 
+  const handleCrearProveedor = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const proveedorCreado = await crearProveedor(nuevoProveedor)
+      console.log("Proveedor creado:", proveedorCreado)
+      
+      // Actualizar la lista de proveedores
+      const nuevosProveedores = await obtenerProveedores()
+      setProveedores(nuevosProveedores)
+      
+      // Seleccionar automáticamente el proveedor recién creado
+      setFormData({ ...formData, idproveedor: proveedorCreado.idproveedor })
+      
+      // Cerrar el modal y limpiar el formulario
+      setShowProveedorModal(false)
+      setNuevoProveedor({ proveedor: "", direccion: "", telefono: "" })
+      
+      alert("Proveedor creado exitosamente")
+    } catch (error) {
+      console.error("Error al crear proveedor:", error)
+      alert("Error al crear el proveedor")
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       articulo: "",
       idcategoria: 0,
+      idproveedor: 0,
       descripcion: "",
       precio_venta: 0,
       stock_actual: 0,
@@ -92,6 +136,7 @@ export default function Articulos() {
       setFormData({
         articulo: articulo.articulo,
         idcategoria: articulo.idcategoria,
+        idproveedor: articulo.idproveedor || 0,
         descripcion: articulo.descripcion || "",
         precio_venta: articulo.precio_venta,
         stock_actual: articulo.stock_actual,
@@ -169,6 +214,7 @@ export default function Articulos() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proveedor</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -177,10 +223,12 @@ export default function Articulos() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {articulosFiltrados.map((articulo) => {
                   const categoria = categorias.find((c) => c.idcategoria === articulo.idcategoria)
+                  const proveedor = proveedores.find((p) => p.idproveedor === (articulo.idproveedor || 0))
                   return (
                     <tr key={articulo.idarticulo}>
                       <td className="px-6 py-4 whitespace-nowrap">{articulo.articulo}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{categoria?.categoria || "Sin categoría"}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{proveedor?.proveedor || "Sin proveedor"}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -254,6 +302,32 @@ export default function Articulos() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                  <div className="flex space-x-2">
+                    <select
+                      className="flex-1 border border-gray-300 rounded px-3 py-2"
+                      value={formData.idproveedor}
+                      onChange={(e) => setFormData({ ...formData, idproveedor: Number.parseInt(e.target.value) })}
+                      required
+                    >
+                      <option value={0}>Seleccionar proveedor</option>
+                      {proveedores.map((proveedor) => (
+                        <option key={proveedor.idproveedor} value={proveedor.idproveedor}>
+                          {proveedor.proveedor}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowProveedorModal(true)}
+                      className="px-3"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Stock Actual</label>
                   <input
                     type="number"
@@ -263,17 +337,17 @@ export default function Articulos() {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                    value={formData.precio_venta}
-                    onChange={(e) => setFormData({ ...formData, precio_venta: Number.parseFloat(e.target.value) })}
-                    required
-                  />
-                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  value={formData.precio_venta}
+                  onChange={(e) => setFormData({ ...formData, precio_venta: Number.parseFloat(e.target.value) })}
+                  required
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
@@ -288,6 +362,55 @@ export default function Articulos() {
                   Cancelar
                 </Button>
                 <Button type="submit">{editingArticulo ? "Actualizar" : "Guardar"} Artículo</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para crear nuevo proveedor */}
+      {showProveedorModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-md">
+            <div className="flex justify-between items-center border-b border-gray-200 p-4">
+              <h3 className="text-lg font-medium">Nuevo Proveedor</h3>
+              <button onClick={() => setShowProveedorModal(false)} className="text-gray-400 hover:text-gray-500">×</button>
+            </div>
+            <form onSubmit={handleCrearProveedor} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Proveedor</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  value={nuevoProveedor.proveedor}
+                  onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, proveedor: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  value={nuevoProveedor.direccion}
+                  onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, direccion: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  value={nuevoProveedor.telefono}
+                  onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, telefono: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="border-t border-gray-200 pt-4 flex justify-end space-x-3">
+                <Button type="button" variant="outline" onClick={() => setShowProveedorModal(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Crear Proveedor</Button>
               </div>
             </form>
           </div>

@@ -11,6 +11,9 @@ import {
   crearSalida,
   crearDetalle,
   actualizarArticulo,
+  obtenerProveedores,
+  crearRegistro,
+  crearProveedor,
   type ArticuloOut,
   type SalidaPayload,
   type DetallePayload,
@@ -33,6 +36,7 @@ const motivosSalida = ["Venta", "Transferencia", "Devolución", "Merma", "Uso in
 
 export default function Salidas() {
   const [articulos, setArticulos] = useState<ArticuloOut[]>([])
+  const [proveedores, setProveedores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -52,60 +56,100 @@ export default function Salidas() {
   // Formulario para agregar artículo
   const [nuevoDetalle, setNuevoDetalle] = useState({
     idarticulo: 0,
-    cantidad: 1,
+    cantidad: 0,
   })
 
   useEffect(() => {
-    cargarArticulos()
+    cargarDatos()
   }, [])
 
-  const cargarArticulos = async () => {
+  const cargarDatos = async () => {
     try {
       setLoading(true)
-      const articulosData = await obtenerArticulos()
+      const [articulosData, proveedoresData] = await Promise.all([
+        obtenerArticulos(),
+        obtenerProveedores()
+      ])
       setArticulos(articulosData)
+      setProveedores(proveedoresData)
     } catch (error) {
-      console.error("Error al cargar artículos:", error)
+      console.error("Error al cargar datos:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  const agregarDetalle = () => {
-    if (nuevoDetalle.idarticulo === 0) return
+  const cargarArticulos = async () => {
+    try {
+      const articulosData = await obtenerArticulos()
+      setArticulos(articulosData)
+    } catch (error) {
+      console.error("Error al cargar artículos:", error)
+    }
+  }
 
-    const articulo = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo)
-    if (!articulo) return
+  const agregarDetalle = () => {
+    console.log("Función agregarDetalle llamada")
+    console.log("nuevoDetalle:", nuevoDetalle)
+    console.log("articulos:", articulos)
+    console.log("Buscando artículo con ID:", nuevoDetalle.idarticulo, "tipo:", typeof nuevoDetalle.idarticulo)
+    console.log("IDs disponibles:", articulos.map(a => ({ id: a.idarticulo, tipo: typeof a.idarticulo, nombre: a.articulo })))
+    
+    if (nuevoDetalle.idarticulo === 0) {
+      console.log("No se seleccionó artículo")
+      alert("Debe seleccionar un artículo")
+      return
+    }
+
+    if (nuevoDetalle.cantidad <= 0 || isNaN(nuevoDetalle.cantidad)) {
+      console.log("Cantidad inválida")
+      alert("Debe ingresar una cantidad mayor a 0")
+      return
+    }
+
+    const articulo = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo || a.idarticulo === Number(nuevoDetalle.idarticulo) || Number(a.idarticulo) === nuevoDetalle.idarticulo)
+    console.log("artículo encontrado:", articulo)
+    
+    if (!articulo) {
+      console.log("No se encontró el artículo")
+      alert("Artículo no encontrado")
+      return
+    }
 
     // Verificar si el artículo ya está en la lista
     const existeDetalle = detalles.find((d) => d.idarticulo === nuevoDetalle.idarticulo)
     if (existeDetalle) {
+      console.log("Artículo ya existe en la lista")
       alert("Este artículo ya está agregado a la salida")
       return
     }
 
     // Verificar stock disponible
-    if (nuevoDetalle.cantidad > articulo.stock_actual) {
+    if (nuevoDetalle.cantidad > Number(articulo.stock_actual)) {
+      console.log("Stock insuficiente")
       alert(`Stock insuficiente. Disponible: ${articulo.stock_actual}`)
       return
     }
 
-    const total = nuevoDetalle.cantidad * articulo.precio_venta
+    const total = nuevoDetalle.cantidad * Number(articulo.precio_venta)
+    console.log("Total calculado:", total)
 
     const detalle: DetalleSalida = {
       idarticulo: nuevoDetalle.idarticulo,
       articulo: articulo.articulo,
       cantidad: nuevoDetalle.cantidad,
-      stock_disponible: articulo.stock_actual,
-      precio_unitario: articulo.precio_venta,
+      stock_disponible: Number(articulo.stock_actual),
+      precio_unitario: Number(articulo.precio_venta),
       total,
     }
 
+    console.log("Detalle a agregar:", detalle)
     setDetalles([...detalles, detalle])
     setNuevoDetalle({
       idarticulo: 0,
-      cantidad: 1,
+      cantidad: 0,
     })
+    console.log("Detalle agregado exitosamente")
   }
 
   const eliminarDetalle = (index: number) => {
@@ -114,12 +158,12 @@ export default function Salidas() {
   }
 
   const calcularTotal = () => {
-    return detalles.reduce((sum, detalle) => sum + detalle.total, 0)
+    return detalles.reduce((sum, detalle) => sum + Number(detalle.total), 0)
   }
 
   const validarStock = (articuloId: number, cantidad: number) => {
-    const articulo = articulos.find((a) => a.idarticulo === articuloId)
-    return articulo ? cantidad <= articulo.stock_actual : false
+    const articulo = articulos.find((a) => a.idarticulo === articuloId || a.idarticulo === Number(articuloId) || Number(a.idarticulo) === articuloId)
+    return articulo ? cantidad <= Number(articulo.stock_actual) : false
   }
 
   const guardarSalida = async () => {
@@ -154,17 +198,50 @@ export default function Salidas() {
     try {
       setSaving(true)
 
-      // Crear el registro principal
-      const salidaPayload: SalidaPayload = {
-        tipo_movimiento: "SALIDA",
-        destino: salidaData.destino,
-        fecha: salidaData.fecha,
-        nro_comprobante: Number.parseInt(salidaData.nro_comprobante),
-        usuario: salidaData.usuario,
-        motivo: salidaData.motivo,
+      // Buscar o crear un proveedor específico para salidas
+      let proveedorSalidas = proveedores.find(p => p.proveedor.toLowerCase().includes('salida') || p.proveedor.toLowerCase().includes('sistema'))
+      
+      if (!proveedorSalidas) {
+        console.log("Creando proveedor para salidas...")
+        try {
+          proveedorSalidas = await crearProveedor({
+            proveedor: "Sistema - Salidas Internas",
+            direccion: "Sistema interno de inventario",
+            telefono: "000-000-0000"
+          })
+          console.log("Proveedor para salidas creado:", proveedorSalidas)
+          
+          // Actualizar la lista de proveedores
+          const nuevosProveedores = await obtenerProveedores()
+          setProveedores(nuevosProveedores)
+        } catch (error) {
+          console.error("Error al crear proveedor para salidas:", error)
+          // Si no se puede crear, usar el primer proveedor disponible
+          proveedorSalidas = proveedores.length > 0 ? proveedores[0] : { idproveedor: 1 }
+        }
       }
 
-      const salidaCreada = await crearSalida(salidaPayload)
+      console.log("Datos a enviar a la API:")
+      console.log("Proveedor para salidas:", proveedorSalidas)
+      console.log("Detalles:", detalles)
+
+      // Crear el registro principal usando la función crearRegistro directamente
+      const registroPayload = {
+        idproveedor: proveedorSalidas.idproveedor,
+        tipo_movimiento: "SALIDA",
+        proveedor: salidaData.destino, // Usar destino como proveedor
+        fecha: salidaData.fecha, // Formato YYYY-MM-DD
+        nro_comprobante: Number.parseInt(salidaData.nro_comprobante),
+        usuario: salidaData.usuario,
+      }
+
+      console.log("Payload del registro:", registroPayload)
+      console.log("Tipo de fecha:", typeof salidaData.fecha)
+      console.log("Fecha formateada:", salidaData.fecha)
+
+      const salidaCreada = await crearRegistro(registroPayload)
+
+      console.log("Registro creado:", salidaCreada)
 
       // Crear los detalles
       for (const detalle of detalles) {
@@ -176,12 +253,14 @@ export default function Salidas() {
           total: detalle.total,
         }
 
+        console.log("Creando detalle:", detallePayload)
         await crearDetalle(detallePayload)
 
         // Actualizar el stock del artículo (disminuir)
-        const articulo = articulos.find((a) => a.idarticulo === detalle.idarticulo)
+        const articulo = articulos.find((a) => a.idarticulo === detalle.idarticulo || a.idarticulo === Number(detalle.idarticulo) || Number(a.idarticulo) === detalle.idarticulo)
         if (articulo) {
-          const nuevoStock = articulo.stock_actual - detalle.cantidad
+          const nuevoStock = Number(articulo.stock_actual) - detalle.cantidad
+          console.log(`Actualizando stock de ${articulo.articulo}: ${articulo.stock_actual} -> ${nuevoStock}`)
           await actualizarArticulo(articulo.idarticulo, {
             ...articulo,
             stock_actual: nuevoStock,
@@ -206,13 +285,13 @@ export default function Salidas() {
       await cargarArticulos()
     } catch (error) {
       console.error("Error al guardar salida:", error)
-      alert("Error al guardar la salida")
+      alert("Error al guardar la salida: " + (error instanceof Error ? error.message : "Error desconocido"))
     } finally {
       setSaving(false)
     }
   }
 
-  const articuloSeleccionado = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo)
+  const articuloSeleccionado = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo || a.idarticulo === Number(nuevoDetalle.idarticulo) || Number(a.idarticulo) === nuevoDetalle.idarticulo)
 
   if (loading) {
     return <div className="p-6">Cargando datos...</div>
@@ -316,7 +395,7 @@ export default function Salidas() {
                     </SelectTrigger>
                     <SelectContent>
                       {articulos
-                        .filter((articulo) => articulo.stock_actual > 0)
+                        .filter((articulo) => Number(articulo.stock_actual) > 0)
                         .map((articulo) => (
                           <SelectItem key={articulo.idarticulo} value={articulo.idarticulo.toString()}>
                             {articulo.articulo} (Stock: {articulo.stock_actual})
@@ -331,9 +410,13 @@ export default function Salidas() {
                     id="cantidad"
                     type="number"
                     min="1"
-                    max={articuloSeleccionado?.stock_actual || 1}
+                    max={articuloSeleccionado ? Number(articuloSeleccionado.stock_actual) : 1}
                     value={nuevoDetalle.cantidad}
-                    onChange={(e) => setNuevoDetalle({ ...nuevoDetalle, cantidad: Number.parseInt(e.target.value) })}
+                    onChange={(e) => {
+                      const valor = e.target.value
+                      const cantidad = valor === "" ? 0 : Number.parseInt(valor) || 0
+                      setNuevoDetalle({ ...nuevoDetalle, cantidad })
+                    }}
                   />
                   {articuloSeleccionado && (
                     <p className="text-xs text-gray-500 mt-1">Disponible: {articuloSeleccionado.stock_actual}</p>
@@ -347,7 +430,7 @@ export default function Salidas() {
                 </div>
               </div>
 
-              {articuloSeleccionado && nuevoDetalle.cantidad > articuloSeleccionado.stock_actual && (
+              {articuloSeleccionado && nuevoDetalle.cantidad > Number(articuloSeleccionado.stock_actual) && (
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
@@ -402,8 +485,8 @@ export default function Salidas() {
                               {detalle.stock_disponible}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">${detalle.precio_unitario.toFixed(2)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap font-medium">${detalle.total.toFixed(2)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">${Number(detalle.precio_unitario).toFixed(2)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap font-medium">${Number(detalle.total).toFixed(2)}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
                             <button onClick={() => eliminarDetalle(index)} className="text-red-500 hover:text-red-700">
                               <Trash2 className="w-4 h-4" />
@@ -479,7 +562,7 @@ export default function Salidas() {
             <CardContent>
               <div className="space-y-2">
                 {articulos
-                  .filter((a) => a.stock_actual <= 5)
+                  .filter((a) => Number(a.stock_actual) <= 5)
                   .slice(0, 3)
                   .map((articulo) => (
                     <div key={articulo.idarticulo} className="flex justify-between text-xs">
@@ -489,7 +572,7 @@ export default function Salidas() {
                       </Badge>
                     </div>
                   ))}
-                {articulos.filter((a) => a.stock_actual <= 5).length === 0 && (
+                {articulos.filter((a) => Number(a.stock_actual) <= 5).length === 0 && (
                   <p className="text-xs text-gray-500">No hay artículos con bajo stock</p>
                 )}
               </div>
