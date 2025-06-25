@@ -14,10 +14,11 @@ export interface CategoriaOut extends CategoriaPayload {
 export interface ArticuloPayload {
   articulo: string;
   idcategoria: number;
-  idproveedor: number;
+  idproveedor?: number;
   descripcion?: string;
   precio_venta: number;
   stock_actual: number;
+  costo: number;
 }
 
 export interface ArticuloOut extends ArticuloPayload {
@@ -56,6 +57,7 @@ export interface DetallePayload {
   cantidad: number;
   precio_unitario: number;
   total: number;
+  costo: number;
 }
 
 export interface DetalleOut extends DetallePayload {
@@ -413,6 +415,7 @@ export async function actualizarStockArticulo(idArticulo: number, nuevoStock: nu
     descripcion: articuloActual.descripcion,
     precio_venta: articuloActual.precio_venta,
     stock_actual: nuevoStock,
+    costo: articuloActual.costo,
   };
 
   return await actualizarArticulo(idArticulo, datosActualizados);

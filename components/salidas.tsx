@@ -57,6 +57,7 @@ export default function Salidas() {
   const [nuevoDetalle, setNuevoDetalle] = useState({
     idarticulo: 0,
     cantidad: 0,
+    articulo: "",
   })
 
   useEffect(() => {
@@ -148,6 +149,7 @@ export default function Salidas() {
     setNuevoDetalle({
       idarticulo: 0,
       cantidad: 0,
+      articulo: "",
     })
     console.log("Detalle agregado exitosamente")
   }
@@ -251,6 +253,7 @@ export default function Salidas() {
           cantidad: detalle.cantidad,
           precio_unitario: detalle.precio_unitario,
           total: detalle.total,
+          costo: detalle.precio_unitario,
         }
 
         console.log("Creando detalle:", detallePayload)
@@ -292,6 +295,13 @@ export default function Salidas() {
   }
 
   const articuloSeleccionado = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo || a.idarticulo === Number(nuevoDetalle.idarticulo) || Number(a.idarticulo) === nuevoDetalle.idarticulo)
+
+  const articulosFiltrados = salidaData.destino
+    ? articulos.filter((a) => {
+        const proveedor = proveedores.find((p) => p.proveedor === salidaData.destino);
+        return proveedor && a.idproveedor === proveedor.idproveedor;
+      })
+    : [];
 
   if (loading) {
     return <div className="p-6">Cargando datos...</div>
@@ -338,11 +348,12 @@ export default function Salidas() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="destino">Destino</Label>
-                  <Input
+                  <input
                     id="destino"
                     value={salidaData.destino}
-                    onChange={(e) => setSalidaData({ ...salidaData, destino: e.target.value })}
-                    placeholder="Ej: Departamento de Ventas, Cliente XYZ"
+                    onChange={e => setSalidaData({ ...salidaData, destino: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                    placeholder="Ej: Cliente, área, etc."
                   />
                 </div>
                 <div>
@@ -386,23 +397,17 @@ export default function Salidas() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="articulo">Artículo</Label>
-                  <Select
-                    value={nuevoDetalle.idarticulo.toString()}
-                    onValueChange={(value) => setNuevoDetalle({ ...nuevoDetalle, idarticulo: Number.parseInt(value) })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar artículo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {articulos
-                        .filter((articulo) => Number(articulo.stock_actual) > 0)
-                        .map((articulo) => (
-                          <SelectItem key={articulo.idarticulo} value={articulo.idarticulo.toString()}>
-                            {articulo.articulo} (Stock: {articulo.stock_actual})
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <input
+                    list="articulos-list"
+                    value={nuevoDetalle.articulo || ""}
+                    onChange={e => setNuevoDetalle({ ...nuevoDetalle, articulo: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                  <datalist id="articulos-list">
+                    {articulos.map((a) => (
+                      <option key={a.idarticulo} value={a.articulo} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <Label htmlFor="cantidad">Cantidad</Label>

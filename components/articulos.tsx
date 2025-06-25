@@ -42,6 +42,7 @@ export default function Articulos() {
     descripcion: "",
     precio_venta: 0,
     stock_actual: 0,
+    costo: 0,
   })
 
   useEffect(() => {
@@ -126,6 +127,7 @@ export default function Articulos() {
       descripcion: "",
       precio_venta: 0,
       stock_actual: 0,
+      costo: 0,
     })
     setEditingArticulo(null)
   }
@@ -140,9 +142,19 @@ export default function Articulos() {
         descripcion: articulo.descripcion || "",
         precio_venta: articulo.precio_venta,
         stock_actual: articulo.stock_actual,
+        costo: articulo.costo,
       })
     } else {
-      resetForm()
+      setFormData({
+        articulo: "",
+        idcategoria: 0,
+        idproveedor: 0,
+        descripcion: "",
+        precio_venta: 0,
+        stock_actual: 0,
+        costo: 0,
+      })
+      setEditingArticulo(null)
     }
     setShowModal(true)
   }
@@ -216,6 +228,7 @@ export default function Articulos() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proveedor</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Costo</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -242,6 +255,7 @@ export default function Articulos() {
                           {articulo.stock_actual}
                         </span>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap">${Number(articulo.costo).toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap">${Number(articulo.precio_venta).toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <button className="text-blue-500 hover:text-blue-700 mr-3" onClick={() => openModal(articulo)}>

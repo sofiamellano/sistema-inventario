@@ -11,15 +11,15 @@ import {
   obtenerArticulos,
   crearRegistro,
   crearDetalle,
-  actualizarArticulo,
   type ProveedorOut,
   type ArticuloOut,
   type RegistroPayload,
   type DetallePayload,
-  type ArticuloPayload,
 } from "@/lib/api"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { calcularCostoPromedioPonderado } from "@/lib/utils"
+import { actualizarArticulo } from "@/lib/api"
 
 interface DetalleEntrada {
   idarticulo: number
@@ -37,10 +37,11 @@ export default function Entradas() {
 
   // Datos del registro principal
   const [registroData, setRegistroData] = useState({
+    proveedor: "",
     idproveedor: 0,
     nro_comprobante: "",
     fecha: new Date().toISOString().split("T")[0],
-    usuario: "admin", // En una app real, esto vendría del usuario logueado
+    usuario: "admin",
   })
 
   // Detalles de la entrada
@@ -48,6 +49,7 @@ export default function Entradas() {
 
   // Formulario para agregar artículo
   const [nuevoDetalle, setNuevoDetalle] = useState({
+    articulo: "",
     idarticulo: 0,
     cantidad: 1,
     precio_unitario: 0,
@@ -134,6 +136,7 @@ export default function Entradas() {
     console.log("agregarDetalle - Detalle a agregar:", detalle)
     setDetalles([...detalles, detalle])
     setNuevoDetalle({
+      articulo: "",
       idarticulo: 0,
       cantidad: 1,
       precio_unitario: 0,
@@ -174,9 +177,9 @@ export default function Entradas() {
 
       // Crear el registro principal
       const registroPayload: RegistroPayload = {
-        idproveedor: registroData.idproveedor,
+        idproveedor: 0,
         tipo_movimiento: "ENTRADA",
-        proveedor: proveedor?.proveedor || "",
+        proveedor: registroData.proveedor,
         fecha: registroData.fecha,
         nro_comprobante: Number(registroData.nro_comprobante),
         usuario: registroData.usuario,
@@ -184,7 +187,7 @@ export default function Entradas() {
 
       const registroCreado = await crearRegistro(registroPayload)
 
-      // Crear los detalles y actualizar stock
+      // Crear los detalles y actualizar stock y costo promedio
       for (const detalle of detalles) {
         const detallePayload: DetallePayload = {
           idregistro: registroCreado.idregistro,
@@ -192,28 +195,31 @@ export default function Entradas() {
           cantidad: detalle.cantidad,
           precio_unitario: detalle.precio_unitario,
           total: detalle.total,
+          costo: detalle.precio_unitario,
         }
-
         await crearDetalle(detallePayload)
 
-        // Actualizar el stock del artículo
-        const articulo = articulos.find((a) => a.idarticulo === detalle.idarticulo)
+        // Calcular y actualizar el costo promedio ponderado
+        const articulo = articulos.find((a) => Number(a.idarticulo) === Number(detalle.idarticulo))
         if (articulo) {
           const nuevoStock = articulo.stock_actual + detalle.cantidad
-          const updatePayload: ArticuloPayload = {
-            articulo: articulo.articulo,
-            idcategoria: articulo.idcategoria,
-            idproveedor: articulo.idproveedor,
-            descripcion: articulo.descripcion,
-            precio_venta: Number(articulo.precio_venta),
+          const nuevoCosto = calcularCostoPromedioPonderado(
+            articulo.stock_actual,
+            articulo.costo,
+            detalle.cantidad,
+            detalle.precio_unitario
+          )
+          await actualizarArticulo(articulo.idarticulo, {
+            ...articulo,
             stock_actual: nuevoStock,
-          }
-          await actualizarArticulo(articulo.idarticulo, updatePayload)
+            costo: nuevoCosto,
+          })
         }
       }
 
       // Limpiar el formulario
       setRegistroData({
+        proveedor: "",
         idproveedor: 0,
         nro_comprobante: "",
         fecha: new Date().toISOString().split("T")[0],
@@ -257,21 +263,17 @@ export default function Entradas() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="proveedor">Proveedor</Label>
-                  <Select
-                    value={registroData.idproveedor.toString()}
-                    onValueChange={(value) => setRegistroData({ ...registroData, idproveedor: Number(value) })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar proveedor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {proveedores.map((proveedor) => (
-                        <SelectItem key={proveedor.idproveedor} value={proveedor.idproveedor.toString()}>
-                          {proveedor.proveedor}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <input
+                    list="proveedores-list"
+                    value={registroData.proveedor || ""}
+                    onChange={e => setRegistroData({ ...registroData, proveedor: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                  <datalist id="proveedores-list">
+                    {proveedores.map((p) => (
+                      <option key={p.idproveedor} value={p.proveedor} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <Label htmlFor="nro_comprobante">Número de Comprobante</Label>
@@ -311,26 +313,17 @@ export default function Entradas() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="articulo">Artículo</Label>
-                  <Select
-                    value={nuevoDetalle.idarticulo.toString()}
-                    onValueChange={(value) => {
-                      console.log("Select artículo - valor seleccionado:", value, "tipo:", typeof value)
-                      const idArticulo = Number(value)
-                      console.log("Select artículo - id convertido:", idArticulo, "tipo:", typeof idArticulo)
-                      setNuevoDetalle({ ...nuevoDetalle, idarticulo: idArticulo })
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar artículo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {articulos.map((articulo) => (
-                        <SelectItem key={articulo.idarticulo} value={articulo.idarticulo.toString()}>
-                          {articulo.articulo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <input
+                    list="articulos-list"
+                    value={nuevoDetalle.articulo || ""}
+                    onChange={e => setNuevoDetalle({ ...nuevoDetalle, articulo: e.target.value })}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                  <datalist id="articulos-list">
+                    {articulos.map((a) => (
+                      <option key={a.idarticulo} value={a.articulo} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <Label htmlFor="cantidad">Cantidad</Label>
