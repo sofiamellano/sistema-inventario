@@ -237,33 +237,43 @@ export const generarReporteInventarioPDF = async (
   yPosition += 15
 
   // Obtener los datos reales del inventario desde la API
-  const articulos = await obtenerArticulos()
+  let articulos = await obtenerArticulos()
+
+  // Filtrar por categoría si corresponde
+  if (filtros.categoria) {
+    articulos = articulos.filter(a => a.idcategoria === Number(filtros.categoria))
+  }
 
   const datosInventario = articulos.map((item) => {
     const categoriaNombre = categorias.find((c) => c.idcategoria === item.idcategoria)?.categoria || "Sin categoría"
     const proveedorNombre = proveedores.find((p) => p.idproveedor === item.idproveedor)?.proveedor || "Sin proveedor"
     const stock = Number(item.stock_actual)
-    const precio = Number(item.precio_venta)
-    const valor = stock * precio
-
+    const precioVenta = Number(item.precio_venta)
+    const costo = Number(item.costo)
+    const valorCosto = stock * costo
+    const valorVenta = stock * precioVenta
     return {
       articulo: item.articulo,
       categoria: categoriaNombre,
       proveedor: proveedorNombre,
       stock,
-      precio,
-      valor,
+      costo,
+      precioVenta,
+      valorCosto,
+      valorVenta,
     }
   })
 
-  const columnas = ["Artículo", "Categoría", "Proveedor", "Stock", "Precio Unit.", "Valor Total"]
+  const columnas = ["Artículo", "Categoría", "Proveedor", "Stock", "Costo Unit.", "Valor a Costo", "Precio Venta", "Valor a Venta"]
   const filas = datosInventario.map((item) => [
     item.articulo,
     item.categoria,
     item.proveedor,
     item.stock.toString(),
-    `$${item.precio.toFixed(2)}`,
-    `$${item.valor.toFixed(2)}`,
+    `$${item.costo.toFixed(2)}`,
+    `$${item.valorCosto.toFixed(2)}`,
+    `$${item.precioVenta.toFixed(2)}`,
+    `$${item.valorVenta.toFixed(2)}`,
   ])
 
   autoTable(doc, {
@@ -283,27 +293,31 @@ export const generarReporteInventarioPDF = async (
       fillColor: [248, 249, 250],
     },
     columnStyles: {
-      0: { cellWidth: 50 },
+      0: { cellWidth: 40 },
       1: { cellWidth: 25 },
       2: { cellWidth: 25 },
       3: { cellWidth: 15, halign: "center" },
-      4: { cellWidth: 25, halign: "right" },
+      4: { cellWidth: 20, halign: "right" },
       5: { cellWidth: 25, halign: "right" },
+      6: { cellWidth: 20, halign: "right" },
+      7: { cellWidth: 25, halign: "right" },
     },
   })
 
   // Resumen de valorización
   const currentY = (doc as any).lastAutoTable.finalY + 20
-  const valorTotal = datosInventario.reduce((sum, item) => sum + item.valor, 0)
+  const valorTotalCosto = datosInventario.reduce((sum, item) => sum + item.valorCosto, 0)
+  const valorTotalVenta = datosInventario.reduce((sum, item) => sum + item.valorVenta, 0)
 
   doc.setFontSize(12)
   doc.setTextColor(40, 40, 40)
   doc.text("Resumen de Valorización:", 20, currentY)
 
   doc.setFontSize(10)
-  doc.text(`Valor total del inventario: $${valorTotal.toFixed(2)}`, 20, currentY + 15)
-  doc.text(`Artículos únicos: ${datosInventario.length}`, 20, currentY + 25)
-  doc.text(`Stock total: ${datosInventario.reduce((sum, item) => sum + item.stock, 0)} unidades`, 20, currentY + 35)
+  doc.text(`Valor total del inventario a costo: $${valorTotalCosto.toFixed(2)}`, 20, currentY + 15)
+  doc.text(`Valor total del inventario a precio de venta: $${valorTotalVenta.toFixed(2)}`, 20, currentY + 25)
+  doc.text(`Artículos únicos: ${datosInventario.length}`, 20, currentY + 35)
+  doc.text(`Stock total: ${datosInventario.reduce((sum, item) => sum + item.stock, 0)} unidades`, 20, currentY + 45)
 
   // Agregar número de páginas
   const totalPages = doc.getNumberOfPages()

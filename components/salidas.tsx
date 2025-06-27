@@ -108,7 +108,7 @@ export default function Salidas() {
       return
     }
 
-    const articulo = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo || a.idarticulo === Number(nuevoDetalle.idarticulo) || Number(a.idarticulo) === nuevoDetalle.idarticulo)
+    const articulo = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo)
     console.log("artículo encontrado:", articulo)
     
     if (!articulo) {
@@ -400,7 +400,15 @@ export default function Salidas() {
                   <input
                     list="articulos-list"
                     value={nuevoDetalle.articulo || ""}
-                    onChange={e => setNuevoDetalle({ ...nuevoDetalle, articulo: e.target.value })}
+                    onChange={e => {
+                      const nombre = e.target.value;
+                      const articuloObj = articulos.find(a => a.articulo === nombre);
+                      setNuevoDetalle({
+                        ...nuevoDetalle,
+                        articulo: nombre,
+                        idarticulo: articuloObj ? articuloObj.idarticulo : 0
+                      });
+                    }}
                     className="w-full border border-gray-300 rounded px-3 py-2"
                   />
                   <datalist id="articulos-list">

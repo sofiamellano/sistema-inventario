@@ -346,8 +346,8 @@ export default function Articulos() {
                   <input
                     type="number"
                     className="w-full border border-gray-300 rounded px-3 py-2"
-                    value={formData.stock_actual}
-                    onChange={(e) => setFormData({ ...formData, stock_actual: Number.parseInt(e.target.value) })}
+                    value={formData.stock_actual === 0 ? "" : formData.stock_actual}
+                    onChange={(e) => setFormData({ ...formData, stock_actual: isNaN(Number(e.target.value)) ? 0 : Number(e.target.value) })}
                     required
                   />
                 </div>
@@ -358,8 +358,19 @@ export default function Articulos() {
                   type="number"
                   step="0.01"
                   className="w-full border border-gray-300 rounded px-3 py-2"
-                  value={formData.precio_venta}
-                  onChange={(e) => setFormData({ ...formData, precio_venta: Number.parseFloat(e.target.value) })}
+                  value={formData.precio_venta === 0 ? "" : formData.precio_venta}
+                  onChange={(e) => setFormData({ ...formData, precio_venta: isNaN(Number(e.target.value)) ? 0 : Number(e.target.value) })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Costo ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  value={formData.costo === 0 ? "" : formData.costo}
+                  onChange={(e) => setFormData({ ...formData, costo: isNaN(Number(e.target.value)) ? 0 : Number(e.target.value) })}
                   required
                 />
               </div>

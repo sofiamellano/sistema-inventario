@@ -15,11 +15,16 @@ import {
   type ArticuloOut,
   type RegistroPayload,
   type DetallePayload,
+  obtenerCategorias,
+  crearArticulo,
+  type CategoriaOut,
+  crearProveedor,
 } from "@/lib/api"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+//import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { calcularCostoPromedioPonderado } from "@/lib/utils"
 import { actualizarArticulo } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 interface DetalleEntrada {
   idarticulo: number
@@ -34,6 +39,9 @@ export default function Entradas() {
   const [articulos, setArticulos] = useState<ArticuloOut[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [categorias, setCategorias] = useState<CategoriaOut[]>([])
+  const [nuevoArticuloExtra, setNuevoArticuloExtra] = useState({ idcategoria: 0, idproveedor: 0 })
+  const [creandoArticulo, setCreandoArticulo] = useState(false)
 
   // Datos del registro principal
   const [registroData, setRegistroData] = useState({
@@ -55,6 +63,10 @@ export default function Entradas() {
     precio_unitario: 0,
   })
 
+  const [nuevoProveedorExtra, setNuevoProveedorExtra] = useState({ direccion: "", telefono: "" })
+  const [creandoProveedor, setCreandoProveedor] = useState(false)
+  const { toast } = useToast();
+
   useEffect(() => {
     cargarDatos()
   }, [])
@@ -64,7 +76,11 @@ export default function Entradas() {
       setLoading(true)
       console.log("cargarDatos - Iniciando carga de datos")
       
-      const [proveedoresData, articulosData] = await Promise.all([obtenerProveedores(), obtenerArticulos()])
+      const [proveedoresData, articulosData, categoriasData] = await Promise.all([
+        obtenerProveedores(),
+        obtenerArticulos(),
+        obtenerCategorias()
+      ])
       
       console.log("cargarDatos - Proveedores cargados:", proveedoresData.length)
       console.log("cargarDatos - Artículos cargados:", articulosData.length)
@@ -72,6 +88,7 @@ export default function Entradas() {
       
       setProveedores(proveedoresData)
       setArticulos(articulosData)
+      setCategorias(categoriasData)
     } catch (error) {
       console.error("Error al cargar datos:", error)
     } finally {
@@ -79,69 +96,107 @@ export default function Entradas() {
     }
   }
 
-  const agregarDetalle = () => {
-    console.log("agregarDetalle - nuevoDetalle:", nuevoDetalle)
-    console.log("agregarDetalle - articulos disponibles:", articulos.length)
-    console.log("agregarDetalle - articulos:", articulos)
-    
-    if (nuevoDetalle.idarticulo === 0) {
-      console.log("agregarDetalle - No se seleccionó artículo")
-      alert("Debe seleccionar un artículo")
+  const agregarDetalle = async () => {
+    // Buscar el artículo por nombre exacto (ignorando mayúsculas/minúsculas)
+    const articuloExistente = articulos.find(
+      (a) => a.articulo.trim().toLowerCase() === nuevoDetalle.articulo.trim().toLowerCase()
+    )
+    let idarticulo = articuloExistente ? articuloExistente.idarticulo : 0
+
+    // Si no existe, mostrar campos extra y esperar confirmación
+    if (!articuloExistente && !creandoArticulo) {
+      setCreandoArticulo(true)
       return
     }
 
-    // Buscar el artículo con comparación explícita de tipos
-    const articulo = articulos.find((a) => Number(a.idarticulo) === Number(nuevoDetalle.idarticulo))
-    console.log("agregarDetalle - artículo encontrado:", articulo)
-    console.log("agregarDetalle - buscando id:", nuevoDetalle.idarticulo, "tipo:", typeof nuevoDetalle.idarticulo)
-    
-    if (!articulo) {
-      console.log("agregarDetalle - No se encontró el artículo")
-      console.log("agregarDetalle - IDs disponibles:", articulos.map(a => ({ id: a.idarticulo, tipo: typeof a.idarticulo, nombre: a.articulo })))
-      alert("No se encontró el artículo seleccionado")
+    // Validaciones generales
+    if (nuevoDetalle.cantidad <= 0) {
+      alert("La cantidad debe ser mayor a 0")
       return
     }
-
-    // Verificar si el artículo ya está en la lista
-    const existeDetalle = detalles.find((d) => Number(d.idarticulo) === Number(nuevoDetalle.idarticulo))
-    if (existeDetalle) {
-      console.log("agregarDetalle - Artículo ya existe en la lista")
+    if (nuevoDetalle.precio_unitario < 0) {
+      alert("El precio unitario no puede ser negativo")
+      return
+    }
+    if (detalles.find((d) => d.articulo.trim().toLowerCase() === nuevoDetalle.articulo.trim().toLowerCase())) {
       alert("Este artículo ya está agregado a la entrada")
       return
     }
 
-    if (nuevoDetalle.cantidad <= 0) {
-      console.log("agregarDetalle - Cantidad inválida")
-      alert("La cantidad debe ser mayor a 0")
-      return
+    // Si no existe, crearlo
+    if (!articuloExistente) {
+      let idproveedorArticulo = nuevoArticuloExtra.idproveedor;
+      if (idproveedorArticulo === -1) {
+        // Usar el proveedor de la entrada (nuevo o existente)
+        idproveedorArticulo = registroData.idproveedor;
+        // Si el proveedor de la entrada aún no existe, crearlo primero
+        if (!idproveedorArticulo || idproveedorArticulo === 0) {
+          if (!registroData.proveedor.trim() || !nuevoProveedorExtra.direccion.trim() || !nuevoProveedorExtra.telefono.trim()) {
+            alert("Debe completar los datos del nuevo proveedor para poder crear el artículo")
+            return;
+          }
+          try {
+            const nuevoProv = await crearProveedor({
+              proveedor: registroData.proveedor.trim(),
+              direccion: nuevoProveedorExtra.direccion.trim(),
+              telefono: nuevoProveedorExtra.telefono.trim(),
+            });
+            idproveedorArticulo = nuevoProv.idproveedor;
+            setRegistroData({ ...registroData, idproveedor: idproveedorArticulo });
+            await cargarDatos();
+          } catch (error) {
+            alert("Error al crear el proveedor para el artículo")
+            return;
+          }
+        }
+      }
+      if (!nuevoArticuloExtra.idcategoria || !idproveedorArticulo) {
+        alert("Debe seleccionar categoría y proveedor para el nuevo artículo")
+        return
+      }
+      // Crear el artículo
+      try {
+        const nuevoArticulo = await crearArticulo({
+          articulo: nuevoDetalle.articulo.trim(),
+          idcategoria: nuevoArticuloExtra.idcategoria,
+          idproveedor: idproveedorArticulo,
+          descripcion: "",
+          precio_venta: nuevoDetalle.precio_unitario,
+          stock_actual: 0,
+          costo: nuevoDetalle.precio_unitario,
+        })
+        idarticulo = nuevoArticulo.idarticulo
+        // Recargar artículos para tener el nuevo en la lista
+        await cargarDatos()
+        setCreandoArticulo(false)
+        setNuevoArticuloExtra({ idcategoria: 0, idproveedor: 0 })
+      } catch (error: any) {
+        let msg = "Error al crear el artículo"
+        if (error instanceof Error) {
+          msg += ": " + error.message
+        }
+        alert(msg)
+        return
+      }
     }
 
-    if (nuevoDetalle.precio_unitario < 0) {
-      console.log("agregarDetalle - Precio inválido")
-      alert("El precio unitario no puede ser negativo")
-      return
+    // Buscar el artículo actualizado
+    const articulo = articulos.find((a) => a.idarticulo === idarticulo) || {
+      articulo: nuevoDetalle.articulo,
+      idarticulo,
     }
-
     const total = nuevoDetalle.cantidad * nuevoDetalle.precio_unitario
-    console.log("agregarDetalle - Total calculado:", total)
-
-    const detalle: DetalleEntrada = {
-      idarticulo: nuevoDetalle.idarticulo,
+    const detalle = {
+      idarticulo,
       articulo: articulo.articulo,
       cantidad: nuevoDetalle.cantidad,
       precio_unitario: nuevoDetalle.precio_unitario,
       total,
     }
-
-    console.log("agregarDetalle - Detalle a agregar:", detalle)
     setDetalles([...detalles, detalle])
-    setNuevoDetalle({
-      articulo: "",
-      idarticulo: 0,
-      cantidad: 1,
-      precio_unitario: 0,
-    })
-    console.log("agregarDetalle - Detalle agregado exitosamente")
+    setNuevoDetalle({ articulo: "", idarticulo: 0, cantidad: 1, precio_unitario: 0 })
+    setCreandoArticulo(false)
+    setNuevoArticuloExtra({ idcategoria: 0, idproveedor: 0 })
   }
 
   const eliminarDetalle = (index: number) => {
@@ -154,8 +209,42 @@ export default function Entradas() {
   }
 
   const guardarEntrada = async () => {
-    if (registroData.idproveedor === 0) {
-      alert("Debe seleccionar un proveedor")
+    // Validar proveedor
+    if (!registroData.proveedor.trim()) {
+      alert("Debe ingresar el nombre del proveedor")
+      return
+    }
+    let idproveedor = registroData.idproveedor
+    const proveedorExistente = proveedores.find(p => p.proveedor === registroData.proveedor)
+    if (!proveedorExistente && !creandoProveedor) {
+      setCreandoProveedor(true)
+      return
+    }
+    if (!proveedorExistente && creandoProveedor) {
+      if (!nuevoProveedorExtra.direccion.trim() || !nuevoProveedorExtra.telefono.trim()) {
+        alert("Debe completar dirección y teléfono del nuevo proveedor")
+        return
+      }
+      try {
+        const nuevoProv = await crearProveedor({
+          proveedor: registroData.proveedor.trim(),
+          direccion: nuevoProveedorExtra.direccion.trim(),
+          telefono: nuevoProveedorExtra.telefono.trim(),
+        })
+        idproveedor = nuevoProv.idproveedor
+        await cargarDatos()
+        setRegistroData({ ...registroData, idproveedor })
+        setCreandoProveedor(false)
+        setNuevoProveedorExtra({ direccion: "", telefono: "" })
+      } catch (error) {
+        alert("Error al crear el proveedor")
+        return
+      }
+    } else if (proveedorExistente) {
+      idproveedor = proveedorExistente.idproveedor
+    }
+    if (!idproveedor || idproveedor === 0) {
+      alert("Debe seleccionar un proveedor válido")
       return
     }
 
@@ -172,12 +261,12 @@ export default function Entradas() {
     try {
       setSaving(true)
 
-      const proveedor = proveedores.find((p) => p.idproveedor === registroData.idproveedor)
+      const proveedor = proveedores.find((p) => p.idproveedor === idproveedor)
       const totalEntrada = calcularTotal()
 
       // Crear el registro principal
       const registroPayload: RegistroPayload = {
-        idproveedor: 0,
+        idproveedor,
         tipo_movimiento: "ENTRADA",
         proveedor: registroData.proveedor,
         fecha: registroData.fecha,
@@ -214,6 +303,14 @@ export default function Entradas() {
             stock_actual: nuevoStock,
             costo: nuevoCosto,
           })
+          // ALERTA si el precio de venta es igual o menor al nuevo costo
+          if (nuevoCosto > articulo.precio_venta) {
+            toast({
+              title: `¡Atención!`,
+              description: `El costo del artículo "${articulo.articulo}" ha aumentado ($${nuevoCosto.toFixed(2)}). Considera actualizar el precio de venta para mantener tu margen de ganancia.`,
+              variant: "default",
+            })
+          }
         }
       }
 
@@ -264,9 +361,18 @@ export default function Entradas() {
                 <div>
                   <Label htmlFor="proveedor">Proveedor</Label>
                   <input
+                    id="proveedor"
                     list="proveedores-list"
                     value={registroData.proveedor || ""}
-                    onChange={e => setRegistroData({ ...registroData, proveedor: e.target.value })}
+                    onChange={e => {
+                      const nombre = e.target.value;
+                      setRegistroData({
+                        ...registroData,
+                        proveedor: nombre,
+                        idproveedor: proveedores.find(p => p.proveedor === nombre)?.idproveedor || 0
+                      });
+                      setCreandoProveedor(false);
+                    }}
                     className="w-full border border-gray-300 rounded px-3 py-2"
                   />
                   <datalist id="proveedores-list">
@@ -274,6 +380,30 @@ export default function Entradas() {
                       <option key={p.idproveedor} value={p.proveedor} />
                     ))}
                   </datalist>
+                  {/* Mostrar campos de dirección y teléfono si el proveedor es nuevo */}
+                  {registroData.proveedor && !proveedores.some(p => p.proveedor === registroData.proveedor) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-yellow-50 p-4 rounded mt-2">
+                      <div>
+                        <Label>Dirección</Label>
+                        <Input
+                          value={nuevoProveedorExtra.direccion}
+                          onChange={e => setNuevoProveedorExtra({ ...nuevoProveedorExtra, direccion: e.target.value })}
+                          placeholder="Dirección del proveedor"
+                        />
+                      </div>
+                      <div>
+                        <Label>Teléfono</Label>
+                        <Input
+                          value={nuevoProveedorExtra.telefono}
+                          onChange={e => setNuevoProveedorExtra({ ...nuevoProveedorExtra, telefono: e.target.value })}
+                          placeholder="Teléfono del proveedor"
+                        />
+                      </div>
+                      <div className="col-span-2 flex items-end">
+                        <span className="text-yellow-700 text-sm">Se creará un nuevo proveedor con estos datos</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="nro_comprobante">Número de Comprobante</Label>
@@ -316,7 +446,10 @@ export default function Entradas() {
                   <input
                     list="articulos-list"
                     value={nuevoDetalle.articulo || ""}
-                    onChange={e => setNuevoDetalle({ ...nuevoDetalle, articulo: e.target.value })}
+                    onChange={e => {
+                      setNuevoDetalle({ ...nuevoDetalle, articulo: e.target.value })
+                      setCreandoArticulo(false)
+                    }}
                     className="w-full border border-gray-300 rounded px-3 py-2"
                   />
                   <datalist id="articulos-list">
@@ -331,10 +464,10 @@ export default function Entradas() {
                     id="cantidad"
                     type="number"
                     min="1"
-                    value={nuevoDetalle.cantidad || ""}
+                    value={nuevoDetalle.cantidad === 0 ? "" : nuevoDetalle.cantidad}
                     onChange={(e) => {
-                      const valor = e.target.value === "" ? 0 : Number(e.target.value)
-                      setNuevoDetalle({ ...nuevoDetalle, cantidad: valor })
+                      const valor = Number(e.target.value)
+                      setNuevoDetalle({ ...nuevoDetalle, cantidad: isNaN(valor) ? 0 : valor })
                     }}
                   />
                 </div>
@@ -345,10 +478,10 @@ export default function Entradas() {
                     type="number"
                     step="0.01"
                     min="0"
-                    value={nuevoDetalle.precio_unitario || ""}
+                    value={nuevoDetalle.precio_unitario === 0 ? "" : nuevoDetalle.precio_unitario}
                     onChange={(e) => {
-                      const valor = e.target.value === "" ? 0 : Number(e.target.value)
-                      setNuevoDetalle({ ...nuevoDetalle, precio_unitario: valor })
+                      const valor = Number(e.target.value)
+                      setNuevoDetalle({ ...nuevoDetalle, precio_unitario: isNaN(valor) ? 0 : valor })
                     }}
                   />
                 </div>
@@ -359,6 +492,43 @@ export default function Entradas() {
                   </Button>
                 </div>
               </div>
+              {creandoArticulo && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-yellow-50 p-4 rounded mt-2">
+                  <div>
+                    <Label>Categoría</Label>
+                    <select
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      value={nuevoArticuloExtra.idcategoria}
+                      onChange={e => setNuevoArticuloExtra({ ...nuevoArticuloExtra, idcategoria: Number(e.target.value) })}
+                    >
+                      <option value={0}>Seleccionar categoría</option>
+                      {categorias.map((cat) => (
+                        <option key={cat.idcategoria} value={cat.idcategoria}>{cat.categoria}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Proveedor</Label>
+                    <select
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      value={nuevoArticuloExtra.idproveedor}
+                      onChange={e => setNuevoArticuloExtra({ ...nuevoArticuloExtra, idproveedor: Number(e.target.value) })}
+                    >
+                      <option value={0}>Seleccionar proveedor</option>
+                      {/* Opción temporal si el proveedor de la entrada no existe */}
+                      {registroData.proveedor && !proveedores.some(p => p.proveedor === registroData.proveedor) && (
+                        <option value={-1}>{registroData.proveedor} (nuevo proveedor de la entrada)</option>
+                      )}
+                      {proveedores.map((prov) => (
+                        <option key={prov.idproveedor} value={prov.idproveedor}>{prov.proveedor}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2 flex items-end">
+                    <span className="text-yellow-700 text-sm">Se creará un nuevo artículo con estos datos</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
