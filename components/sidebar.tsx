@@ -56,7 +56,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         {/* Logo */}
         <div className="p-4 flex items-center space-x-2 border-b border-gray-700">
           <Warehouse className="text-blue-400 w-8 h-8" />
-          {!isCollapsed && <span className="text-xl font-bold">InventarioPro</span>}
+          {!isCollapsed && <span className="text-xl font-bold">InventarioDUO</span>}
         </div>
 
         {/* Navigation */}

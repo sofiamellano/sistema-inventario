@@ -30,6 +30,7 @@ interface DetalleSalida {
   stock_disponible: number
   precio_unitario: number
   total: number
+  fecha?: string
 }
 
 const motivosSalida = ["Venta", "Transferencia", "Devolución", "Merma", "Uso interno", "Donación", "Otro"]
@@ -44,7 +45,6 @@ export default function Salidas() {
   const [salidaData, setSalidaData] = useState({
     nro_comprobante: "",
     fecha: new Date().toISOString().split("T")[0],
-    usuario: "admin", // En una app real, esto vendría del usuario logueado
     destino: "",
     motivo: "",
     observaciones: "",
@@ -234,7 +234,6 @@ export default function Salidas() {
         proveedor: salidaData.destino, // Usar destino como proveedor
         fecha: salidaData.fecha, // Formato YYYY-MM-DD
         nro_comprobante: Number.parseInt(salidaData.nro_comprobante),
-        usuario: salidaData.usuario,
       }
 
       console.log("Payload del registro:", registroPayload)
@@ -254,6 +253,7 @@ export default function Salidas() {
           precio_unitario: detalle.precio_unitario,
           total: detalle.total,
           costo: detalle.precio_unitario,
+          fecha: salidaData.fecha,
         }
 
         console.log("Creando detalle:", detallePayload)
@@ -275,7 +275,6 @@ export default function Salidas() {
       setSalidaData({
         nro_comprobante: "",
         fecha: new Date().toISOString().split("T")[0],
-        usuario: "admin",
         destino: "",
         motivo: "",
         observaciones: "",
@@ -466,29 +465,19 @@ export default function Salidas() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Artículo
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Cantidad
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Stock Disp.
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Precio Unit.
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Total
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Acción
-                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Detalle</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artículo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Disp.</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Unit.</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {detalles.map((detalle, index) => (
                         <tr key={index}>
+                          <td className="px-4 py-3 whitespace-nowrap">{detalle.fecha ? detalle.fecha : salidaData.fecha}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{detalle.articulo}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{detalle.cantidad}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
@@ -551,9 +540,6 @@ export default function Salidas() {
               <CardTitle>Información</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="text-sm">
-                <strong>Usuario:</strong> {salidaData.usuario}
-              </div>
               {salidaData.destino && (
                 <div className="text-sm">
                   <strong>Destino:</strong> {salidaData.destino}

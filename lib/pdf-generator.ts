@@ -1,45 +1,47 @@
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
-import type { RegistroConDetalles, ProveedorOut, CategoriaOut } from "./api"
+import type { RegistroConDetalles, ProveedorOut, CategoriaOut, ArticuloOut } from "./api"
 import { obtenerArticulos } from "./api"
 
-// Extender el tipo jsPDF para incluir autoTable
+// Extender el tipo jsPDF para incluir autoTable - necesario para TypeScript
 declare module "jspdf" {
   interface jsPDF {
     autoTable: (options: any) => jsPDF
   }
 }
 
+// Interfaz que define los filtros disponibles para generar reportes
 interface FiltrosReporte {
-  tipo: "todos" | "entradas" | "salidas"
-  fechaDesde: string
-  fechaHasta: string
-  proveedor: string
-  categoria: string
-  incluirDetalles: boolean
-  incluirGraficos: boolean
-  incluirResumen: boolean
+  tipo: "todos" | "entradas" | "salidas"  // Tipo de movimientos a incluir
+  fechaDesde: string                      // Fecha de inicio del período
+  fechaHasta: string                      // Fecha de fin del período
+  proveedor: string                       // ID del proveedor a filtrar
+  categoria: string                       // ID de la categoría a filtrar
+  incluirDetalles: boolean               // Si incluir detalles de cada movimiento
+  incluirGraficos: boolean               // Si incluir gráficos (no implementado)
+  incluirResumen: boolean                // Si incluir resumen ejecutivo
 }
 
-// Configuración base para PDFs
+// Función que configura el encabezado estándar de todos los PDFs
 const configurarPDF = (doc: jsPDF, titulo: string) => {
-  // Configurar fuente
+  // Configurar fuente base
   doc.setFont("helvetica")
 
-  // Header
+  // Título principal de la aplicación
   doc.setFontSize(20)
   doc.setTextColor(40, 40, 40)
-  doc.text("InventarioPro", 20, 25)
+  doc.text("InventarioDUO", 20, 25)
 
+  // Título específico del reporte
   doc.setFontSize(16)
   doc.setTextColor(60, 60, 60)
   doc.text(titulo, 20, 35)
 
-  // Línea separadora
+  // Línea separadora visual
   doc.setDrawColor(200, 200, 200)
   doc.line(20, 40, 190, 40)
 
-  // Fecha de generación
+  // Fecha y hora de generación del reporte
   doc.setFontSize(10)
   doc.setTextColor(100, 100, 100)
   doc.text(
@@ -48,29 +50,32 @@ const configurarPDF = (doc: jsPDF, titulo: string) => {
     50,
   )
 
-  return 60 // Posición Y inicial para el contenido
+  return 60 // Retorna la posición Y donde debe comenzar el contenido
 }
 
-// Función para agregar pie de página
+// Función que agrega pie de página con numeración y marca de la aplicación
 const agregarPiePagina = (doc: jsPDF, numeroPagina: number, totalPaginas: number) => {
   const pageHeight = doc.internal.pageSize.height
   doc.setFontSize(8)
   doc.setTextColor(100, 100, 100)
+  // Número de página en la esquina inferior izquierda
   doc.text(`Página ${numeroPagina} de ${totalPaginas}`, 20, pageHeight - 10)
-  doc.text("InventarioPro - Sistema de Gestión de Inventario", 105, pageHeight - 10, { align: "center" })
+  // Marca de la aplicación centrada en el pie
+  doc.text("InventarioDUO - Sistema de Gestión de Inventario", 105, pageHeight - 10, { align: "center" })
 }
 
-// Generar reporte de movimientos
+// FUNCIÓN PRINCIPAL: Generar reporte de movimientos de inventario
 export const generarReportePDF = async (
   registros: RegistroConDetalles[],
   filtros: FiltrosReporte,
   proveedores: ProveedorOut[],
   categorias: CategoriaOut[],
+  articulos: ArticuloOut[],
 ) => {
   const doc = new jsPDF()
   let yPosition = configurarPDF(doc, "Reporte de Movimientos de Inventario")
 
-  // Información de filtros aplicados
+  // SECCIÓN 1: Mostrar los filtros aplicados en el reporte
   doc.setFontSize(12)
   doc.setTextColor(40, 40, 40)
   doc.text("Filtros Aplicados:", 20, yPosition)
@@ -78,11 +83,14 @@ export const generarReportePDF = async (
 
   doc.setFontSize(10)
   doc.setTextColor(80, 80, 80)
+  // Mostrar período de fechas
   doc.text(`Período: ${filtros.fechaDesde} al ${filtros.fechaHasta}`, 20, yPosition)
   yPosition += 6
+  // Mostrar tipo de movimientos incluidos
   doc.text(`Tipo: ${filtros.tipo === "todos" ? "Todos los movimientos" : filtros.tipo}`, 20, yPosition)
   yPosition += 6
 
+  // Si hay filtro de proveedor, mostrarlo
   if (filtros.proveedor) {
     const proveedor = proveedores.find((p) => p.idproveedor.toString() === filtros.proveedor)
     doc.text(`Proveedor: ${proveedor?.proveedor || "No encontrado"}`, 20, yPosition)
@@ -91,18 +99,20 @@ export const generarReportePDF = async (
 
   yPosition += 10
 
-  // Resumen ejecutivo si está habilitado
+  // SECCIÓN 2: Resumen ejecutivo (opcional)
   if (filtros.incluirResumen) {
     doc.setFontSize(12)
     doc.setTextColor(40, 40, 40)
     doc.text("Resumen Ejecutivo:", 20, yPosition)
     yPosition += 10
 
+    // Calcular estadísticas de entradas y salidas
     const totalEntradas = registros.filter((r) => r.tipo_movimiento === "ENTRADA")
     const totalSalidas = registros.filter((r) => r.tipo_movimiento === "SALIDA")
     const valorEntradas = totalEntradas.reduce((sum, r) => sum + Number(r.total || 0), 0)
     const valorSalidas = totalSalidas.reduce((sum, r) => sum + Number(r.total || 0), 0)
 
+    // Mostrar estadísticas calculadas
     doc.setFontSize(10)
     doc.text(`Total de movimientos: ${registros.length}`, 20, yPosition)
     yPosition += 6
@@ -114,20 +124,43 @@ export const generarReportePDF = async (
     yPosition += 15
   }
 
-  // Tabla de movimientos
-  const columnas = ["Fecha", "Tipo", "Comprobante", "Proveedor", "Destino", "Usuario", "Total"]
-  const filas = registros.map((registro) => [
-    new Date(registro.fecha).toLocaleDateString("es-ES"),
-    registro.tipo_movimiento,
-    `#${registro.nro_comprobante}`,
-    registro.tipo_movimiento === "ENTRADA"
-      ? registro.proveedor || proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor || ""
-      : "-",
-    registro.tipo_movimiento === "SALIDA" ? registro.proveedor || "" : "-",
-    registro.usuario,
-    `$${Number(registro.total || 0).toFixed(2)}`,
-  ])
+  // SECCIÓN 3: Tabla principal con todos los movimientos
+  const columnas = [
+    "Fecha Detalle",
+    "Tipo",
+    "Comprobante",
+    "Proveedor",
+    "Destino",
+    "Artículo",
+    "Categoría",
+    "Cantidad",
+    "Precio Unitario",
+    "Total Detalle"
+  ];
+  
+  // Transformar los datos para la tabla - cada detalle es una fila
+  const filas = registros.flatMap((registro) =>
+    registro.detalles.map((detalle) => {
+      const articulo = articulos.find((a) => a.idarticulo === detalle.idarticulo);
+      const categoriaNombre = categorias.find((cat) => cat.idcategoria === articulo?.idcategoria)?.categoria || "-";
+      return [
+        detalle.fecha ? new Date(detalle.fecha).toLocaleDateString("es-ES") : new Date(registro.fecha).toLocaleDateString("es-ES"),
+        registro.tipo_movimiento,
+        `#${registro.nro_comprobante}`,
+        registro.tipo_movimiento === "ENTRADA"
+          ? registro.proveedor || proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor || ""
+          : "-",
+        registro.tipo_movimiento === "SALIDA" ? registro.proveedor || "" : "-",
+        detalle.articulo || "",
+        categoriaNombre,
+        detalle.cantidad.toString(),
+        `$${Number(detalle.precio_unitario).toFixed(2)}`,
+        `$${Number(detalle.total).toFixed(2)}`
+      ];
+    })
+  );
 
+  // Generar la tabla con autoTable
   autoTable(doc, {
     head: [columnas],
     body: filas,
@@ -137,12 +170,12 @@ export const generarReportePDF = async (
       cellPadding: 3,
     },
     headStyles: {
-      fillColor: [66, 139, 202],
+      fillColor: [66, 139, 202], // Azul para encabezados
       textColor: 255,
       fontStyle: "bold",
     },
     alternateRowStyles: {
-      fillColor: [245, 245, 245],
+      fillColor: [245, 245, 245], // Gris claro para filas alternas
     },
     columnStyles: {
       0: { cellWidth: 25 },
@@ -150,22 +183,27 @@ export const generarReportePDF = async (
       2: { cellWidth: 25 },
       3: { cellWidth: 30 },
       4: { cellWidth: 30 },
-      5: { cellWidth: 20 },
-      6: { cellWidth: 20, halign: "right" },
+      5: { cellWidth: 30 },
+      6: { cellWidth: 30 },
+      7: { cellWidth: 15 },
+      8: { cellWidth: 25 },
+      9: { cellWidth: 20, halign: "right" }, // Alinear totales a la derecha
     },
-  })
+  });
 
-  // Detalles de artículos si está habilitado
+  // SECCIÓN 4: Detalles expandidos de movimientos (opcional)
   if (filtros.incluirDetalles) {
     let currentY = (doc as any).lastAutoTable.finalY + 20
 
+    // Limitar a 5 registros para evitar PDFs excesivamente largos
     for (const registro of registros.slice(0, 5)) {
-      // Limitar a 5 registros para evitar PDFs muy largos
+      // Si no hay espacio, crear nueva página
       if (currentY > 250) {
         doc.addPage()
         currentY = 20
       }
 
+      // Título del detalle
       doc.setFontSize(10)
       doc.setTextColor(40, 40, 40)
       doc.text(
@@ -177,6 +215,7 @@ export const generarReportePDF = async (
       )
       currentY += 10
 
+      // Tabla de detalles para este registro específico
       const columnasDetalle = ["Artículo", "Cantidad", "Precio Unit.", "Total"]
       const filasDetalle = registro.detalles.map((detalle) => [
         detalle.articulo || "",
@@ -194,7 +233,7 @@ export const generarReportePDF = async (
           cellPadding: 2,
         },
         headStyles: {
-          fillColor: [108, 117, 125],
+          fillColor: [108, 117, 125], // Gris para encabezados de detalle
           textColor: 255,
         },
         columnStyles: {
@@ -209,18 +248,18 @@ export const generarReportePDF = async (
     }
   }
 
-  // Agregar número de páginas
+  // SECCIÓN 5: Agregar numeración de páginas a todas las páginas
   const totalPages = doc.getNumberOfPages()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
     agregarPiePagina(doc, i, totalPages)
   }
 
-  // Descargar el PDF
+  // SECCIÓN 6: Descargar el archivo PDF
   doc.save(`reporte_movimientos_${new Date().toISOString().split("T")[0]}.pdf`)
 }
 
-// Generar reporte de inventario
+// FUNCIÓN: Generar reporte del estado actual del inventario
 export const generarReporteInventarioPDF = async (
   registros: RegistroConDetalles[],
   filtros: FiltrosReporte,
@@ -230,28 +269,29 @@ export const generarReporteInventarioPDF = async (
   const doc = new jsPDF()
   let yPosition = configurarPDF(doc, "Reporte de Estado de Inventario")
 
-  // Información general
+  // Título de la sección
   doc.setFontSize(12)
   doc.setTextColor(40, 40, 40)
   doc.text("Estado Actual del Inventario:", 20, yPosition)
   yPosition += 15
 
-  // Obtener los datos reales del inventario desde la API
+  // Obtener datos actuales del inventario desde la API
   let articulos = await obtenerArticulos()
 
-  // Filtrar por categoría si corresponde
+  // Aplicar filtro de categoría si está especificado
   if (filtros.categoria) {
     articulos = articulos.filter(a => a.idcategoria === Number(filtros.categoria))
   }
 
+  // Transformar datos para el reporte, calculando valores
   const datosInventario = articulos.map((item) => {
     const categoriaNombre = categorias.find((c) => c.idcategoria === item.idcategoria)?.categoria || "Sin categoría"
     const proveedorNombre = proveedores.find((p) => p.idproveedor === item.idproveedor)?.proveedor || "Sin proveedor"
     const stock = Number(item.stock_actual)
     const precioVenta = Number(item.precio_venta)
     const costo = Number(item.costo)
-    const valorCosto = stock * costo
-    const valorVenta = stock * precioVenta
+    const valorCosto = stock * costo        // Valor del stock a precio de costo
+    const valorVenta = stock * precioVenta  // Valor del stock a precio de venta
     return {
       articulo: item.articulo,
       categoria: categoriaNombre,
@@ -264,6 +304,7 @@ export const generarReporteInventarioPDF = async (
     }
   })
 
+  // Crear tabla del inventario
   const columnas = ["Artículo", "Categoría", "Proveedor", "Stock", "Costo Unit.", "Valor a Costo", "Precio Venta", "Valor a Venta"]
   const filas = datosInventario.map((item) => [
     item.articulo,
@@ -285,7 +326,7 @@ export const generarReporteInventarioPDF = async (
       cellPadding: 3,
     },
     headStyles: {
-      fillColor: [40, 167, 69],
+      fillColor: [40, 167, 69], // Verde para reporte de inventario
       textColor: 255,
       fontStyle: "bold",
     },
@@ -304,7 +345,7 @@ export const generarReporteInventarioPDF = async (
     },
   })
 
-  // Resumen de valorización
+  // Sección de resumen con totales calculados
   const currentY = (doc as any).lastAutoTable.finalY + 20
   const valorTotalCosto = datosInventario.reduce((sum, item) => sum + item.valorCosto, 0)
   const valorTotalVenta = datosInventario.reduce((sum, item) => sum + item.valorVenta, 0)
@@ -319,17 +360,18 @@ export const generarReporteInventarioPDF = async (
   doc.text(`Artículos únicos: ${datosInventario.length}`, 20, currentY + 35)
   doc.text(`Stock total: ${datosInventario.reduce((sum, item) => sum + item.stock, 0)} unidades`, 20, currentY + 45)
 
-  // Agregar número de páginas
+  // Agregar numeración de páginas
   const totalPages = doc.getNumberOfPages()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
     agregarPiePagina(doc, i, totalPages)
   }
 
+  // Descargar el PDF
   doc.save(`reporte_inventario_${new Date().toISOString().split("T")[0]}.pdf`)
 }
 
-// Generar reporte comparativo
+// FUNCIÓN: Generar reporte comparativo entre entradas y salidas
 export const generarReporteComparativoPDF = async (
   registros: RegistroConDetalles[],
   filtros: FiltrosReporte,
@@ -338,7 +380,7 @@ export const generarReporteComparativoPDF = async (
   const doc = new jsPDF()
   let yPosition = configurarPDF(doc, "Reporte Comparativo de Movimientos")
 
-  // Análisis comparativo
+  // Separar y analizar entradas vs salidas
   const entradas = registros.filter((r) => r.tipo_movimiento === "ENTRADA")
   const salidas = registros.filter((r) => r.tipo_movimiento === "SALIDA")
   const valorEntradas = entradas.reduce((sum, r) => sum + Number(r.total || 0), 0)
@@ -349,7 +391,7 @@ export const generarReporteComparativoPDF = async (
   doc.text("Análisis Comparativo:", 20, yPosition)
   yPosition += 15
 
-  // Tabla comparativa
+  // Tabla comparativa principal
   const datosComparativos = [
     ["Concepto", "Entradas", "Salidas", "Diferencia"],
     [
@@ -392,12 +434,13 @@ export const generarReporteComparativoPDF = async (
     },
   })
 
-  // Análisis por proveedor
+  // Análisis detallado por proveedor
   const currentY = (doc as any).lastAutoTable.finalY + 20
 
   doc.setFontSize(12)
   doc.text("Análisis por Proveedor:", 20, currentY)
 
+  // Calcular estadísticas por proveedor
   const analisisProveedores = proveedores.map((proveedor) => {
     const movimientosProveedor = entradas.filter((e) => e.idproveedor === proveedor.idproveedor)
     const valorProveedor = movimientosProveedor.reduce((sum, m) => sum + Number(m.total || 0), 0)
@@ -412,7 +455,7 @@ export const generarReporteComparativoPDF = async (
     item.proveedor,
     item.movimientos.toString(),
     `$${item.valor.toFixed(2)}`,
-    `${((item.valor / valorEntradas) * 100).toFixed(1)}%`,
+    `${((item.valor / valorEntradas) * 100).toFixed(1)}%`, // Porcentaje del total
   ])
 
   autoTable(doc, {
@@ -424,7 +467,7 @@ export const generarReporteComparativoPDF = async (
       cellPadding: 3,
     },
     headStyles: {
-      fillColor: [220, 53, 69],
+      fillColor: [220, 53, 69], // Rojo para reporte comparativo
       textColor: 255,
       fontStyle: "bold",
     },
@@ -436,12 +479,13 @@ export const generarReporteComparativoPDF = async (
     },
   })
 
-  // Agregar número de páginas
+  // Agregar numeración de páginas
   const totalPages = doc.getNumberOfPages()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
     agregarPiePagina(doc, i, totalPages)
   }
 
+  // Descargar el PDF
   doc.save(`reporte_comparativo_${new Date().toISOString().split("T")[0]}.pdf`)
 }

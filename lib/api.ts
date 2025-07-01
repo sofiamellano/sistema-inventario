@@ -41,14 +41,14 @@ export interface RegistroPayload {
   idproveedor: number;
   tipo_movimiento: string;
   proveedor: string;
-  fecha: string; // ISO string
+  fecha: string;
   nro_comprobante: number;
-  usuario: string;
 }
 
 export interface RegistroOut extends RegistroPayload {
   idregistro: number;
-  deleted?: number;
+  total: number;
+  detalles: DetalleOut[];
 }
 
 export interface DetallePayload {
@@ -58,6 +58,7 @@ export interface DetallePayload {
   precio_unitario: number;
   total: number;
   costo: number;
+  fecha: string;
 }
 
 export interface DetalleOut extends DetallePayload {
@@ -71,7 +72,6 @@ export interface RegistroConDetalles extends RegistroOut {
   detalles: DetalleOut[];
   destino?: string;
   motivo?: string;
-  total?: number;
 }
 
 // ==================== CATEGORÍAS ====================
@@ -308,7 +308,6 @@ export interface EntradaPayload {
   proveedor: string;
   fecha: string;
   nro_comprobante: number;
-  usuario: string;
 }
 
 export async function crearEntrada(data: EntradaPayload): Promise<RegistroOut> {
@@ -319,7 +318,6 @@ export async function crearEntrada(data: EntradaPayload): Promise<RegistroOut> {
     proveedor: data.proveedor,
     fecha: data.fecha,
     nro_comprobante: data.nro_comprobante,
-    usuario: data.usuario,
   };
 
   const url = `${API_URL}?registros&llave=isp`;
@@ -352,7 +350,6 @@ export interface SalidaPayload {
   observaciones?: string;
   fecha: string;
   nro_comprobante: number;
-  usuario: string;
 }
 
 export async function crearSalida(data: SalidaPayload): Promise<RegistroOut> {
@@ -363,7 +360,6 @@ export async function crearSalida(data: SalidaPayload): Promise<RegistroOut> {
     proveedor: data.destino, // Usamos el campo proveedor para almacenar el destino
     fecha: data.fecha,
     nro_comprobante: data.nro_comprobante,
-    usuario: data.usuario,
   };
 
   const url = `${API_URL}?registros&llave=isp`;

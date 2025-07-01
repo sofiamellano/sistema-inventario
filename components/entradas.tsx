@@ -32,6 +32,7 @@ interface DetalleEntrada {
   cantidad: number
   precio_unitario: number
   total: number
+  fecha?: string
 }
 
 export default function Entradas() {
@@ -49,7 +50,6 @@ export default function Entradas() {
     idproveedor: 0,
     nro_comprobante: "",
     fecha: new Date().toISOString().split("T")[0],
-    usuario: "admin",
   })
 
   // Detalles de la entrada
@@ -271,7 +271,6 @@ export default function Entradas() {
         proveedor: registroData.proveedor,
         fecha: registroData.fecha,
         nro_comprobante: Number(registroData.nro_comprobante),
-        usuario: registroData.usuario,
       }
 
       const registroCreado = await crearRegistro(registroPayload)
@@ -285,6 +284,7 @@ export default function Entradas() {
           precio_unitario: detalle.precio_unitario,
           total: detalle.total,
           costo: detalle.precio_unitario,
+          fecha: registroData.fecha,
         }
         await crearDetalle(detallePayload)
 
@@ -320,7 +320,6 @@ export default function Entradas() {
         idproveedor: 0,
         nro_comprobante: "",
         fecha: new Date().toISOString().split("T")[0],
-        usuario: "admin",
       })
       setDetalles([])
 
@@ -425,10 +424,6 @@ export default function Entradas() {
                     value={registroData.fecha}
                     onChange={(e) => setRegistroData({ ...registroData, fecha: e.target.value })}
                   />
-                </div>
-                <div>
-                  <Label htmlFor="usuario">Usuario</Label>
-                  <Input id="usuario" value={registroData.usuario} disabled />
                 </div>
               </div>
             </CardContent>
@@ -543,26 +538,18 @@ export default function Entradas() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Artículo
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Cantidad
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Precio Unit.
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Total
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Acción
-                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Detalle</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artículo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Unit.</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {detalles.map((detalle, index) => (
                         <tr key={index}>
+                          <td className="px-4 py-3 whitespace-nowrap">{detalle.fecha ? detalle.fecha : registroData.fecha}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{detalle.articulo}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{detalle.cantidad}</td>
                           <td className="px-4 py-3 whitespace-nowrap">${detalle.precio_unitario.toFixed(2)}</td>

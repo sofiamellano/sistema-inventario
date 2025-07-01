@@ -14,9 +14,11 @@ import {
   obtenerRegistrosConDetalles,
   obtenerProveedores,
   obtenerCategorias,
+  obtenerArticulos,
   type RegistroConDetalles,
   type ProveedorOut,
   type CategoriaOut,
+  type ArticuloOut,
 } from "@/lib/api"
 import { generarReportePDF, generarReporteInventarioPDF, generarReporteComparativoPDF } from "@/lib/pdf-generator"
 
@@ -35,6 +37,7 @@ export default function Reportes() {
   const [registros, setRegistros] = useState<RegistroConDetalles[]>([])
   const [proveedores, setProveedores] = useState<ProveedorOut[]>([])
   const [categorias, setCategorias] = useState<CategoriaOut[]>([])
+  const [articulos, setArticulos] = useState<ArticuloOut[]>([])
   const [loading, setLoading] = useState(true)
   const [generando, setGenerando] = useState(false)
   const [vistaPreviaVisible, setVistaPreviaVisible] = useState(false)
@@ -57,14 +60,16 @@ export default function Reportes() {
   const cargarDatos = async () => {
     try {
       setLoading(true)
-      const [registrosData, proveedoresData, categoriasData] = await Promise.all([
+      const [registrosData, proveedoresData, categoriasData, articulosData] = await Promise.all([
         obtenerRegistrosConDetalles(),
         obtenerProveedores(),
         obtenerCategorias(),
+        obtenerArticulos(),
       ])
       setRegistros(registrosData)
       setProveedores(proveedoresData)
       setCategorias(categoriasData)
+      setArticulos(articulosData)
     } catch (error) {
       console.error("Error al cargar datos:", error)
     } finally {
@@ -77,8 +82,8 @@ export default function Reportes() {
 
     // Filtrar por tipo
     if (filtros.tipo !== "todos") {
-      const tipoFiltrado = filtros.tipo.slice(0, -1)
-      resultado = resultado.filter((registro) => registro.tipo_movimiento.toLowerCase() === tipoFiltrado)
+      const tipoFiltrado = filtros.tipo === "entradas" ? "ENTRADA" : "SALIDA"
+      resultado = resultado.filter((registro) => registro.tipo_movimiento === tipoFiltrado)
     }
 
     // Filtrar por fecha
@@ -90,7 +95,7 @@ export default function Reportes() {
     }
 
     // Filtrar por proveedor
-    if (filtros.proveedor) {
+    if (filtros.proveedor && filtros.proveedor !== "all") {
       resultado = resultado.filter((registro) => registro.idproveedor?.toString() === filtros.proveedor)
     }
 
@@ -104,7 +109,7 @@ export default function Reportes() {
 
       switch (tipoReporte) {
         case "movimientos":
-          await generarReportePDF(registrosFiltrados, filtros, proveedores, categorias)
+          await generarReportePDF(registrosFiltrados, filtros, proveedores, categorias, articulos)
           break
         case "inventario":
           await generarReporteInventarioPDF(registrosFiltrados, filtros, categorias, proveedores)
@@ -454,47 +459,57 @@ export default function Reportes() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comprobante</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proveedor</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destino</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Detalle</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comprobante</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proveedor</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destino</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artículo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Unitario</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Detalle</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {registrosFiltrados.slice(0, 10).map((registro) => (
-                        <tr key={registro.idregistro}>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            {new Date(registro.fecha).toLocaleDateString("es-ES")}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <Badge
-                              className={
-                                registro.tipo_movimiento === "ENTRADA"
-                                  ? "bg-green-100 text-green-800 border-green-200"
-                                  : "bg-red-100 text-red-800 border-red-200"
-                              }
-                            >
-                              {registro.tipo_movimiento}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">#{registro.nro_comprobante}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            {registro.tipo_movimiento === "ENTRADA"
-                              ? registro.proveedor ||
-                                proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor ||
-                                "-"
-                              : "-"}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">
-                            {registro.tipo_movimiento === "SALIDA" ? registro.proveedor : "-"}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium">
-                            ${Number(registro.total || 0).toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
+                      {registrosFiltrados.slice(0, 10).flatMap((registro) =>
+                        registro.detalles.map((detalle) => {
+                          const articulo = articulos.find((a) => a.idarticulo === detalle.idarticulo)
+                          const categoriaNombre = categorias.find((cat) => cat.idcategoria === articulo?.idcategoria)?.categoria || "-";
+                          return (
+                            <tr key={detalle.iddetalle}>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                {detalle.fecha ? new Date(detalle.fecha).toLocaleDateString("es-ES") : new Date(registro.fecha).toLocaleDateString("es-ES")}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <Badge
+                                  className={
+                                    registro.tipo_movimiento === "ENTRADA"
+                                      ? "bg-green-100 text-green-800 border-green-200"
+                                      : "bg-red-100 text-red-800 border-red-200"
+                                  }
+                                >
+                                  {registro.tipo_movimiento}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">#{registro.nro_comprobante}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                {registro.tipo_movimiento === "ENTRADA"
+                                  ? registro.proveedor || proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor || "-"
+                                  : "-"}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                {registro.tipo_movimiento === "SALIDA" ? registro.proveedor : "-"}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">{detalle.articulo}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">{categoriaNombre}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">{detalle.cantidad}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">${Number(detalle.precio_unitario).toFixed(2)}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium">${Number(detalle.total).toFixed(2)}</td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr>

@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import * as XLSX from "xlsx"
 
 export default function Registros() {
   const [registros, setRegistros] = useState<RegistroConDetalles[]>([])
@@ -82,8 +83,7 @@ export default function Registros() {
         (registro) =>
           registro.nro_comprobante.toString().includes(busqueda) ||
           (registro.proveedor && registro.proveedor.toLowerCase().includes(busqueda)) ||
-          (registro.destino && registro.destino.toLowerCase().includes(busqueda)) ||
-          registro.usuario.toLowerCase().includes(busqueda),
+          (registro.destino && registro.destino.toLowerCase().includes(busqueda)),
       )
     }
 
@@ -115,27 +115,43 @@ export default function Registros() {
     })
   }
 
-  const exportarCSV = () => {
-    // Crear encabezados
-    let csv = "ID,Tipo,Fecha,Comprobante,Proveedor,Destino,Usuario,Total\n"
-
-    // Agregar datos
+  const exportarExcel = () => {
+    const wsData = [
+      [
+        "ID Registro",
+        "Tipo",
+        "Fecha Detalle",
+        "Comprobante",
+        "Proveedor",
+        "Destino",
+        "Artículo",
+        "Cantidad",
+        "Precio Unitario",
+        "Total Detalle"
+      ]
+    ];
     filteredRegistros.forEach((registro) => {
-      const proveedor = registro.tipo_movimiento === "ENTRADA" ? registro.proveedor : ""
-      const destino = registro.tipo_movimiento === "SALIDA" ? registro.proveedor : ""
-      csv += `${registro.idregistro},${registro.tipo_movimiento},${formatFecha(registro.fecha)},${registro.nro_comprobante},"${proveedor}","${destino}",${registro.usuario},${Number(registro.total).toFixed(2)}\n`
-    })
-
-    // Crear y descargar el archivo
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.setAttribute("href", url)
-    link.setAttribute("download", `historial_movimientos_${new Date().toISOString().split("T")[0]}.csv`)
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+      registro.detalles.forEach((detalle) => {
+        wsData.push([
+          String(registro.idregistro),
+          String(registro.tipo_movimiento),
+          String(formatFecha(detalle.fecha || registro.fecha)),
+          String(registro.nro_comprobante),
+          registro.tipo_movimiento === "ENTRADA"
+            ? String(registro.proveedor || proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor || "-")
+            : "-",
+          registro.tipo_movimiento === "SALIDA" ? String(registro.proveedor) : "-",
+          String(detalle.articulo),
+          String(detalle.cantidad),
+          Number(detalle.precio_unitario).toFixed(2),
+          Number(detalle.total).toFixed(2)
+        ]);
+      });
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Movimientos");
+    XLSX.writeFile(wb, `historial_movimientos_${new Date().toISOString().split("T")[0]}.xlsx`);
   }
 
   if (loading) {
@@ -150,9 +166,9 @@ export default function Registros() {
           <FileText className="w-8 h-8 text-blue-600" />
           <h2 className="text-2xl font-bold text-gray-800">Historial de Movimientos</h2>
         </div>
-        <Button onClick={exportarCSV} variant="outline" className="flex items-center space-x-2">
+        <Button onClick={exportarExcel} variant="outline" className="flex items-center space-x-2">
           <Download className="w-4 h-4" />
-          <span>Exportar CSV</span>
+          <span>Exportar Excel</span>
         </Button>
       </div>
 
@@ -277,19 +293,20 @@ export default function Registros() {
                   <TableRow>
                     <TableHead className="w-[80px]">ID</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Fecha</TableHead>
+                    <TableHead>Fecha Detalle</TableHead>
                     <TableHead>Comprobante</TableHead>
                     <TableHead>Proveedor</TableHead>
                     <TableHead>Destino</TableHead>
-                    <TableHead>Usuario</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="w-[50px]">Detalles</TableHead>
+                    <TableHead className="text-right">Total Detalle</TableHead>
+                    <TableHead>Artículo</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Precio Unitario</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRegistros.map((registro) => (
-                    <React.Fragment key={registro.idregistro}>
-                      <TableRow>
+                  {filteredRegistros.flatMap((registro) =>
+                    registro.detalles.map((detalle) => (
+                      <TableRow key={detalle.iddetalle}>
                         <TableCell>{registro.idregistro}</TableCell>
                         <TableCell>
                           <Badge
@@ -307,65 +324,21 @@ export default function Registros() {
                             {registro.tipo_movimiento}
                           </Badge>
                         </TableCell>
-                        <TableCell>{formatFecha(registro.fecha)}</TableCell>
+                        <TableCell>{formatFecha(detalle.fecha || registro.fecha)}</TableCell>
                         <TableCell>{registro.nro_comprobante}</TableCell>
-                        <TableCell>
-                          {registro.tipo_movimiento === "ENTRADA"
-                            ? registro.proveedor || proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor || "-"
-                            : "-"}
-                        </TableCell>
+                        <TableCell>{registro.tipo_movimiento === "ENTRADA"
+                          ? registro.proveedor || proveedores.find((p) => p.idproveedor === registro.idproveedor)?.proveedor || "-"
+                          : "-"}</TableCell>
                         <TableCell>{registro.tipo_movimiento === "SALIDA" ? registro.proveedor : "-"}</TableCell>
-                        <TableCell>{registro.usuario}</TableCell>
                         <TableCell className="text-right font-medium">
-                          ${Number(registro.total).toFixed(2)}
+                          ${Number(detalle.total).toFixed(2)}
                         </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleExpandRegistro(registro.idregistro)}
-                          >
-                            {expandedRegistro === registro.idregistro ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </TableCell>
+                        <TableCell>{detalle.articulo}</TableCell>
+                        <TableCell>{detalle.cantidad}</TableCell>
+                        <TableCell>${Number(detalle.precio_unitario).toFixed(2)}</TableCell>
                       </TableRow>
-                      {expandedRegistro === registro.idregistro && (
-                        <TableRow>
-                          <TableCell colSpan={9}>
-                            <div className="p-4 bg-gray-50 rounded-lg">
-                              <h4 className="font-semibold mb-2">Detalles del Movimiento</h4>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Artículo</TableHead>
-                                    <TableHead>Cantidad</TableHead>
-                                    <TableHead>Precio Unitario</TableHead>
-                                    <TableHead className="text-right">Subtotal</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {registro.detalles?.map((detalle, index) => (
-                                    <TableRow key={index}>
-                                      <TableCell>{detalle.articulo}</TableCell>
-                                      <TableCell>{detalle.cantidad}</TableCell>
-                                      <TableCell>${Number(detalle.precio_unitario).toFixed(2)}</TableCell>
-                                      <TableCell className="text-right">
-                                        ${Number(detalle.total).toFixed(2)}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -423,10 +396,6 @@ export default function Registros() {
                               {registro.tipo_movimiento === "ENTRADA" ? "Proveedor:" : "Destino:"}
                             </p>
                             <p>{registro.tipo_movimiento === "ENTRADA" ? registro.proveedor : registro.proveedor}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">Usuario:</p>
-                            <p>{registro.usuario}</p>
                           </div>
                         </div>
                         <div>
@@ -493,10 +462,6 @@ export default function Registros() {
                               <p className="text-sm font-medium">Proveedor:</p>
                               <p>{registro.proveedor}</p>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium">Usuario:</p>
-                              <p>{registro.usuario}</p>
-                            </div>
                           </div>
                           <div>
                             <p className="text-sm font-medium mb-2">Artículos:</p>
@@ -561,10 +526,6 @@ export default function Registros() {
                             <div>
                               <p className="text-sm font-medium">Destino:</p>
                               <p>{registro.proveedor}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">Usuario:</p>
-                              <p>{registro.usuario}</p>
                             </div>
                           </div>
                           {registro.motivo && (
