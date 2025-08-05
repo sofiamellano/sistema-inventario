@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Warehouse,
   BarChart3,
@@ -34,6 +34,19 @@ const menuItems = [
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [hasActiveToast, setHasActiveToast] = useState(false)
+
+  // Detectar si hay toasts activos
+  useEffect(() => {
+    const checkForActiveToasts = () => {
+      const toastElements = document.querySelectorAll('[data-testid="toast"]')
+      setHasActiveToast(toastElements.length > 0)
+    }
+
+    // Verificar cada 100ms si hay toasts activos
+    const interval = setInterval(checkForActiveToasts, 100)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <>
@@ -68,12 +81,16 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                 <button
                   key={item.id}
                   onClick={() => {
-                    onSectionChange(item.id)
-                    setIsMobileOpen(false)
+                    if (!hasActiveToast) {
+                      onSectionChange(item.id)
+                      setIsMobileOpen(false)
+                    }
                   }}
+                  disabled={hasActiveToast}
                   className={`
-                    w-full flex items-center space-x-2 p-2 rounded hover:bg-gray-700 transition-colors
+                    w-full flex items-center space-x-2 p-2 rounded transition-colors
                     ${activeSection === item.id ? "bg-blue-600 text-white" : ""}
+                    ${hasActiveToast ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-700"}
                   `}
                 >
                   <Icon className="w-6 h-6" />

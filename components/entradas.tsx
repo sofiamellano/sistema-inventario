@@ -24,7 +24,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { calcularCostoPromedioPonderado } from "@/lib/utils"
 import { actualizarArticulo } from "@/lib/api"
-import { useToast } from "@/hooks/use-toast"
+import { useLocalStorage } from "@/hooks/use-local-storage"
+import { toast } from "react-toastify"
 
 interface DetalleEntrada {
   idarticulo: number
@@ -41,31 +42,62 @@ export default function Entradas() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categorias, setCategorias] = useState<CategoriaOut[]>([])
-  const [nuevoArticuloExtra, setNuevoArticuloExtra] = useState({ idcategoria: 0, idproveedor: 0 })
-  const [creandoArticulo, setCreandoArticulo] = useState(false)
 
-  // Datos del registro principal
-  const [registroData, setRegistroData] = useState({
+  // Usar localStorage para el estado persistente
+  const [registroData, setRegistroData] = useLocalStorage('entrada-registro', {
     proveedor: "",
     idproveedor: 0,
     nro_comprobante: "",
     fecha: new Date().toISOString().split("T")[0],
   })
 
-  // Detalles de la entrada
-  const [detalles, setDetalles] = useState<DetalleEntrada[]>([])
+  const [detalles, setDetalles] = useLocalStorage<DetalleEntrada[]>('entrada-detalles', [])
 
-  // Formulario para agregar artículo
-  const [nuevoDetalle, setNuevoDetalle] = useState({
+  const [nuevoDetalle, setNuevoDetalle] = useLocalStorage('entrada-nuevo-detalle', {
     articulo: "",
     idarticulo: 0,
     cantidad: 1,
     precio_unitario: 0,
   })
 
-  const [nuevoProveedorExtra, setNuevoProveedorExtra] = useState({ direccion: "", telefono: "" })
-  const [creandoProveedor, setCreandoProveedor] = useState(false)
-  const { toast } = useToast();
+  const [nuevoProveedorExtra, setNuevoProveedorExtra] = useLocalStorage('entrada-proveedor-extra', { 
+    direccion: "", 
+    telefono: "" 
+  })
+
+  const [creandoProveedor, setCreandoProveedor] = useLocalStorage('entrada-creando-proveedor', false)
+
+  const [nuevoArticuloExtra, setNuevoArticuloExtra] = useLocalStorage('entrada-articulo-extra', { 
+    idcategoria: 0, 
+    idproveedor: 0 
+  })
+
+  const [creandoArticulo, setCreandoArticulo] = useLocalStorage('entrada-creando-articulo', false)
+
+
+
+  // Función para limpiar todo el estado
+  const limpiarEstado = () => {
+    setRegistroData({
+      proveedor: "",
+      idproveedor: 0,
+      nro_comprobante: "",
+      fecha: new Date().toISOString().split("T")[0],
+    })
+    setDetalles([])
+    setNuevoDetalle({
+      articulo: "",
+      idarticulo: 0,
+      cantidad: 1,
+      precio_unitario: 0,
+    })
+    setNuevoProveedorExtra({ direccion: "", telefono: "" })
+    setCreandoProveedor(false)
+    setNuevoArticuloExtra({ idcategoria: 0, idproveedor: 0 })
+    setCreandoArticulo(false)
+  }
+
+
 
   useEffect(() => {
     cargarDatos()
@@ -200,8 +232,21 @@ export default function Entradas() {
   }
 
   const eliminarDetalle = (index: number) => {
-    const nuevosDetalles = detalles.filter((_, i) => i !== index)
-    setDetalles(nuevosDetalles)
+    const detalleAEliminar = detalles[index]
+    toast.promise(
+      new Promise((resolve) => {
+        setTimeout(() => {
+          const nuevosDetalles = detalles.filter((_, i) => i !== index)
+          setDetalles(nuevosDetalles)
+          resolve(true)
+        }, 300)
+      }),
+      {
+        pending: 'Eliminando artículo...',
+        success: `Artículo "${detalleAEliminar.articulo}" eliminado correctamente`,
+        error: 'Error al eliminar el artículo',
+      }
+    )
   }
 
   const calcularTotal = () => {
@@ -305,31 +350,21 @@ export default function Entradas() {
           })
           // ALERTA si el precio de venta es igual o menor al nuevo costo
           if (nuevoCosto > articulo.precio_venta) {
-            toast({
-              title: `¡Atención!`,
-              description: `El costo del artículo "${articulo.articulo}" ha aumentado ($${nuevoCosto.toFixed(2)}). Considera actualizar el precio de venta para mantener tu margen de ganancia.`,
-              variant: "default",
-            })
+            toast.warning(`¡Atención! El costo del artículo "${articulo.articulo}" ha aumentado ($${nuevoCosto.toFixed(2)}). Considera actualizar el precio de venta para mantener tu margen de ganancia.`)
           }
         }
       }
 
-      // Limpiar el formulario
-      setRegistroData({
-        proveedor: "",
-        idproveedor: 0,
-        nro_comprobante: "",
-        fecha: new Date().toISOString().split("T")[0],
-      })
-      setDetalles([])
+      // Limpiar el formulario usando la función del contexto
+      limpiarEstado()
 
-      alert("Entrada registrada exitosamente")
+      toast.success("Entrada registrada exitosamente")
 
       // Recargar artículos para mostrar el stock actualizado
       await cargarDatos()
     } catch (error) {
       console.error("Error al guardar entrada:", error)
-      alert("Error al guardar la entrada")
+      toast.error("Error al guardar la entrada")
     } finally {
       setSaving(false)
     }
@@ -342,9 +377,76 @@ export default function Entradas() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-2">
-        <Package className="w-8 h-8 text-green-600" />
-        <h2 className="text-2xl font-bold text-gray-800">Registro de Entradas de Stock</h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Package className="w-8 h-8 text-green-600" />
+          <h2 className="text-2xl font-bold text-gray-800">Registro de Entradas de Stock</h2>
+        </div>
+        {(detalles.length > 0 || registroData.proveedor || registroData.nro_comprobante) && (
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+              Cambios sin guardar
+            </Badge>
+            <Button
+              variant="outline"
+              onClick={() => {
+                toast.info(
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold mb-2">¿Descartar todos los cambios?</h3>
+                    <p className="text-sm mb-4">
+                      Esta acción eliminará todos los datos de la entrada actual, incluyendo el proveedor, 
+                      número de comprobante y todos los artículos agregados.
+                    </p>
+                    <div className="flex space-x-2 justify-center">
+                      <button
+                        onClick={() => {
+                          toast.dismiss()
+                          toast.promise(
+                            new Promise((resolve) => {
+                              setTimeout(() => {
+                                limpiarEstado()
+                                resolve(true)
+                              }, 500)
+                            }),
+                            {
+                              pending: 'Descartando cambios...',
+                              success: 'Cambios descartados correctamente',
+                              error: 'Error al descartar cambios',
+                            }
+                          )
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      >
+                        Sí, descartar
+                      </button>
+                      <button
+                        onClick={() => toast.dismiss()}
+                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>,
+                  {
+                    position: "top-center",
+                    autoClose: false,
+                    closeOnClick: false,
+                    draggable: false,
+                    closeButton: false,
+                    style: {
+                      minWidth: '400px',
+                      maxWidth: '500px'
+                    }
+                  }
+                )
+              }}
+              className="text-red-600 hover:text-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Descartar Cambios
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -623,6 +725,8 @@ export default function Entradas() {
           )}
         </div>
       </div>
+
+
     </div>
   )
 }

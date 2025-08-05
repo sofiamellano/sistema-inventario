@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { Plus, Edit, Trash2, Search } from "lucide-react"
+import { toast } from "react-toastify"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -85,14 +86,52 @@ export default function Articulos() {
   }
 
   const handleEliminar = async (id: number) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este artículo?")) {
-      try {
-        await eliminarArticulo(id)
-        await cargarDatos()
-      } catch (error) {
-        console.error("Error al eliminar artículo:", error)
+    const articuloAEliminar = articulos.find(a => a.idarticulo === id)
+    
+    toast.info(
+      <div className="text-center">
+        <h3 className="text-lg font-semibold mb-2">¿Eliminar artículo?</h3>
+        <p className="text-sm mb-4">
+          ¿Estás seguro de que deseas eliminar el artículo "{articuloAEliminar?.articulo}"? 
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex space-x-2 justify-center">
+          <button
+            onClick={() => {
+              toast.dismiss()
+              toast.promise(
+                eliminarArticulo(id).then(() => cargarDatos()),
+                {
+                  pending: 'Eliminando artículo...',
+                  success: `Artículo "${articuloAEliminar?.articulo}" eliminado correctamente`,
+                  error: 'Error al eliminar el artículo',
+                }
+              )
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        closeOnClick: false,
+        draggable: false,
+        closeButton: false,
+        style: {
+          minWidth: '400px',
+          maxWidth: '500px'
+        }
       }
-    }
+    )
   }
 
   const handleCrearProveedor = async (e: React.FormEvent) => {

@@ -13,6 +13,7 @@ import Salidas from "@/components/salidas"
 import Registros from "@/components/registros"
 import Reportes from "@/components/reportes"
 
+
 const sectionTitles = {
   dashboard: "Dashboard",
   articulos: "Artículos",

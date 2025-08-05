@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { Plus, Edit, Trash2, Search } from "lucide-react"
+import { toast } from "react-toastify"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,9 +32,7 @@ export default function Categorias() {
   const [categorias, setCategorias] = useState<CategoriaOut[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [editingCategoria, setEditingCategoria] = useState<CategoriaOut | null>(null)
-  const [categoriaToDelete, setCategoriaToDelete] = useState<CategoriaOut | null>(null)
   const [busqueda, setBusqueda] = useState("")
   const [formData, setFormData] = useState<CategoriaPayload>({ categoria: "" })
 
@@ -69,16 +68,53 @@ export default function Categorias() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!categoriaToDelete) return
-    try {
-      await eliminarCategoria(categoriaToDelete.idcategoria)
-      await cargarCategorias()
-      setShowDeleteDialog(false)
-      setCategoriaToDelete(null)
-    } catch (error) {
-      console.error("Error al eliminar categoría:", error)
-    }
+  const handleDelete = async (id: number) => {
+    const categoriaAEliminar = categorias.find(c => c.idcategoria === id)
+    
+    toast.info(
+      <div className="text-center">
+        <h3 className="text-lg font-semibold mb-2">¿Eliminar categoría?</h3>
+        <p className="text-sm mb-4">
+          ¿Estás seguro de que deseas eliminar la categoría "{categoriaAEliminar?.categoria}"? 
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex space-x-2 justify-center">
+          <button
+            onClick={() => {
+              toast.dismiss()
+              toast.promise(
+                eliminarCategoria(id).then(() => cargarCategorias()),
+                {
+                  pending: 'Eliminando categoría...',
+                  success: `Categoría "${categoriaAEliminar?.categoria}" eliminada correctamente`,
+                  error: 'Error al eliminar la categoría',
+                }
+              )
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        closeOnClick: false,
+        draggable: false,
+        closeButton: false,
+        style: {
+          minWidth: '400px',
+          maxWidth: '500px'
+        }
+      }
+    )
   }
 
   const resetForm = () => {
@@ -96,10 +132,7 @@ export default function Categorias() {
     setShowModal(true)
   }
 
-  const openDeleteDialog = (categoria: CategoriaOut) => {
-    setCategoriaToDelete(categoria)
-    setShowDeleteDialog(true)
-  }
+
 
   const categoriasFiltradas = categorias
     .filter(c => c.deleted !== 1)
@@ -165,7 +198,7 @@ export default function Categorias() {
                         </button>
                         <button
                           className="text-red-500 hover:text-red-700"
-                          onClick={() => openDeleteDialog(categoria)}
+                          onClick={() => handleDelete(categoria.idcategoria)}
                           aria-label={`Eliminar ${categoria.categoria}`}
                         >
                           <Trash2 className="w-4 h-4 inline" />
@@ -213,23 +246,7 @@ export default function Categorias() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de confirmación para eliminar */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará la categoría "{categoriaToDelete?.categoria}". Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </div>
   )
 }

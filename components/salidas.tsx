@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useLocalStorage } from "@/hooks/use-local-storage"
+import { toast } from "react-toastify"
 
 interface DetalleSalida {
   idarticulo: number
@@ -41,8 +43,8 @@ export default function Salidas() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // Datos del registro principal
-  const [salidaData, setSalidaData] = useState({
+  // Usar localStorage para el estado persistente
+  const [salidaData, setSalidaData] = useLocalStorage('salida-registro', {
     nro_comprobante: "",
     fecha: new Date().toISOString().split("T")[0],
     destino: "",
@@ -50,15 +52,30 @@ export default function Salidas() {
     observaciones: "",
   })
 
-  // Detalles de la salida
-  const [detalles, setDetalles] = useState<DetalleSalida[]>([])
+  const [detalles, setDetalles] = useLocalStorage<DetalleSalida[]>('salida-detalles', [])
 
-  // Formulario para agregar artículo
-  const [nuevoDetalle, setNuevoDetalle] = useState({
+  const [nuevoDetalle, setNuevoDetalle] = useLocalStorage('salida-nuevo-detalle', {
     idarticulo: 0,
     cantidad: 0,
     articulo: "",
   })
+
+  // Función para limpiar todo el estado
+  const limpiarEstado = () => {
+    setSalidaData({
+      nro_comprobante: "",
+      fecha: new Date().toISOString().split("T")[0],
+      destino: "",
+      motivo: "",
+      observaciones: "",
+    })
+    setDetalles([])
+    setNuevoDetalle({
+      idarticulo: 0,
+      cantidad: 0,
+      articulo: "",
+    })
+  }
 
   useEffect(() => {
     cargarDatos()
@@ -98,13 +115,13 @@ export default function Salidas() {
     
     if (nuevoDetalle.idarticulo === 0) {
       console.log("No se seleccionó artículo")
-      alert("Debe seleccionar un artículo")
+      toast.error("Debe seleccionar un artículo")
       return
     }
 
     if (nuevoDetalle.cantidad <= 0 || isNaN(nuevoDetalle.cantidad)) {
       console.log("Cantidad inválida")
-      alert("Debe ingresar una cantidad mayor a 0")
+      toast.error("Debe ingresar una cantidad mayor a 0")
       return
     }
 
@@ -113,7 +130,7 @@ export default function Salidas() {
     
     if (!articulo) {
       console.log("No se encontró el artículo")
-      alert("Artículo no encontrado")
+      toast.error("Artículo no encontrado")
       return
     }
 
@@ -121,14 +138,14 @@ export default function Salidas() {
     const existeDetalle = detalles.find((d) => d.idarticulo === nuevoDetalle.idarticulo)
     if (existeDetalle) {
       console.log("Artículo ya existe en la lista")
-      alert("Este artículo ya está agregado a la salida")
+      toast.error("Este artículo ya está agregado a la salida")
       return
     }
 
     // Verificar stock disponible
     if (nuevoDetalle.cantidad > Number(articulo.stock_actual)) {
       console.log("Stock insuficiente")
-      alert(`Stock insuficiente. Disponible: ${articulo.stock_actual}`)
+      toast.error(`Stock insuficiente. Disponible: ${articulo.stock_actual}`)
       return
     }
 
@@ -170,29 +187,29 @@ export default function Salidas() {
 
   const guardarSalida = async () => {
     if (!salidaData.nro_comprobante) {
-      alert("Debe ingresar el número de comprobante")
+      toast.error("Debe ingresar el número de comprobante")
       return
     }
 
     if (!salidaData.destino) {
-      alert("Debe especificar el destino")
+      toast.error("Debe especificar el destino")
       return
     }
 
     if (!salidaData.motivo) {
-      alert("Debe seleccionar un motivo")
+      toast.error("Debe seleccionar un motivo")
       return
     }
 
     if (detalles.length === 0) {
-      alert("Debe agregar al menos un artículo")
+      toast.error("Debe agregar al menos un artículo")
       return
     }
 
     // Validar stock para todos los artículos
     for (const detalle of detalles) {
       if (!validarStock(detalle.idarticulo, detalle.cantidad)) {
-        alert(`Stock insuficiente para ${detalle.articulo}`)
+        toast.error(`Stock insuficiente para ${detalle.articulo}`)
         return
       }
     }
@@ -271,23 +288,16 @@ export default function Salidas() {
         }
       }
 
-      // Limpiar el formulario
-      setSalidaData({
-        nro_comprobante: "",
-        fecha: new Date().toISOString().split("T")[0],
-        destino: "",
-        motivo: "",
-        observaciones: "",
-      })
-      setDetalles([])
+      // Limpiar el formulario usando la función del contexto
+      limpiarEstado()
 
-      alert("Salida registrada exitosamente")
+      toast.success("Salida registrada exitosamente")
 
       // Recargar artículos para mostrar el stock actualizado
       await cargarArticulos()
     } catch (error) {
       console.error("Error al guardar salida:", error)
-      alert("Error al guardar la salida: " + (error instanceof Error ? error.message : "Error desconocido"))
+      toast.error("Error al guardar la salida: " + (error instanceof Error ? error.message : "Error desconocido"))
     } finally {
       setSaving(false)
     }
@@ -309,9 +319,76 @@ export default function Salidas() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-2">
-        <PackageOpen className="w-8 h-8 text-red-600" />
-        <h2 className="text-2xl font-bold text-gray-800">Registro de Salidas de Stock</h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <PackageOpen className="w-8 h-8 text-red-600" />
+          <h2 className="text-2xl font-bold text-gray-800">Registro de Salidas de Stock</h2>
+        </div>
+        {(detalles.length > 0 || salidaData.nro_comprobante || salidaData.destino || salidaData.motivo) && (
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+              Cambios sin guardar
+            </Badge>
+            <Button
+              variant="outline"
+              onClick={() => {
+                toast.info(
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold mb-2">¿Descartar todos los cambios?</h3>
+                    <p className="text-sm mb-4">
+                      Esta acción eliminará todos los datos de la salida actual, incluyendo el destino, 
+                      motivo y todos los artículos agregados.
+                    </p>
+                    <div className="flex space-x-2 justify-center">
+                      <button
+                        onClick={() => {
+                          toast.dismiss()
+                          toast.promise(
+                            new Promise((resolve) => {
+                              setTimeout(() => {
+                                limpiarEstado()
+                                resolve(true)
+                              }, 500)
+                            }),
+                            {
+                              pending: 'Descartando cambios...',
+                              success: 'Cambios descartados correctamente',
+                              error: 'Error al descartar cambios',
+                            }
+                          )
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      >
+                        Sí, descartar
+                      </button>
+                      <button
+                        onClick={() => toast.dismiss()}
+                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>,
+                  {
+                    position: "top-center",
+                    autoClose: false,
+                    closeOnClick: false,
+                    draggable: false,
+                    closeButton: false,
+                    style: {
+                      minWidth: '400px',
+                      maxWidth: '500px'
+                    }
+                  }
+                )
+              }}
+              className="text-red-600 hover:text-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Descartar Cambios
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

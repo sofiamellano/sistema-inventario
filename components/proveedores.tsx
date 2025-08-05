@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { Plus, Edit, Trash2, Search, Phone, MapPin } from "lucide-react"
+import { toast } from "react-toastify"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,9 +34,7 @@ export default function Proveedores() {
   const [proveedores, setProveedores] = useState<ProveedorOut[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [editingProveedor, setEditingProveedor] = useState<ProveedorOut | null>(null)
-  const [proveedorToDelete, setProveedorToDelete] = useState<ProveedorOut | null>(null)
   const [busqueda, setBusqueda] = useState("")
   const [formData, setFormData] = useState<ProveedorPayload>({
     proveedor: "",
@@ -75,17 +74,53 @@ export default function Proveedores() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!proveedorToDelete) return
-
-    try {
-      await eliminarProveedor(proveedorToDelete.idproveedor)
-      await cargarProveedores()
-      setShowDeleteDialog(false)
-      setProveedorToDelete(null)
-    } catch (error) {
-      console.error("Error al eliminar proveedor:", error)
-    }
+  const handleDelete = async (id: number) => {
+    const proveedorAEliminar = proveedores.find(p => p.idproveedor === id)
+    
+    toast.info(
+      <div className="text-center">
+        <h3 className="text-lg font-semibold mb-2">¿Eliminar proveedor?</h3>
+        <p className="text-sm mb-4">
+          ¿Estás seguro de que deseas eliminar el proveedor "{proveedorAEliminar?.proveedor}"? 
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex space-x-2 justify-center">
+          <button
+            onClick={() => {
+              toast.dismiss()
+              toast.promise(
+                eliminarProveedor(id).then(() => cargarProveedores()),
+                {
+                  pending: 'Eliminando proveedor...',
+                  success: `Proveedor "${proveedorAEliminar?.proveedor}" eliminado correctamente`,
+                  error: 'Error al eliminar el proveedor',
+                }
+              )
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        closeOnClick: false,
+        draggable: false,
+        closeButton: false,
+        style: {
+          minWidth: '400px',
+          maxWidth: '500px'
+        }
+      }
+    )
   }
 
   const resetForm = () => {
@@ -111,10 +146,7 @@ export default function Proveedores() {
     setShowModal(true)
   }
 
-  const openDeleteDialog = (proveedor: ProveedorOut) => {
-    setProveedorToDelete(proveedor)
-    setShowDeleteDialog(true)
-  }
+
 
   const proveedoresFiltrados = proveedores.filter(
     (proveedor) =>
@@ -214,7 +246,7 @@ export default function Proveedores() {
                         </button>
                         <button
                           className="text-red-500 hover:text-red-700"
-                          onClick={() => openDeleteDialog(proveedor)}
+                          onClick={() => handleDelete(proveedor.idproveedor)}
                           aria-label={`Eliminar ${proveedor.proveedor}`}
                         >
                           <Trash2 className="w-4 h-4 inline" />
@@ -281,23 +313,7 @@ export default function Proveedores() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de confirmación para eliminar */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará el proveedor "{proveedorToDelete?.proveedor}". Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </div>
   )
 }
