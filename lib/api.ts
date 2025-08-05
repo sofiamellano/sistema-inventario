@@ -183,11 +183,26 @@ export async function actualizarArticulo(id: number, data: ArticuloPayload): Pro
 
 export async function eliminarArticulo(id: number): Promise<{ deleted: boolean }> {
   const url = `${API_URL}?articulos&id=${id}&llave=isp`;
+  
+  console.log("eliminarArticulo - URL:", url)
+  console.log("eliminarArticulo - ID:", id)
+  
   const res = await fetch(url, {
     method: "DELETE",
   });
-  if (!res.ok) throw new Error("Error al eliminar artículo");
-  return res.json();
+  
+  console.log("eliminarArticulo - Status:", res.status)
+  console.log("eliminarArticulo - StatusText:", res.statusText)
+  
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.log("eliminarArticulo - Error response:", errorText);
+    throw new Error(`Error al eliminar artículo: ${res.status} ${res.statusText} - ${errorText}`);
+  }
+  
+  const result = await res.json();
+  console.log("eliminarArticulo - Success response:", result);
+  return result;
 }
 
 // ==================== PROVEEDORES ====================
