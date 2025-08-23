@@ -7,6 +7,8 @@ import Dashboard from "@/components/dashboard"
 import Articulos from "@/components/articulos"
 import Categorias from "@/components/categorias"
 import Proveedores from "@/components/proveedores"
+import Clientes from "@/components/clientes"
+import ListasPrecios from "@/components/listas-precios"
 import Entradas from "@/components/entradas"
 import Salidas from "@/components/salidas"
 // Importar el componente de registros
@@ -19,6 +21,8 @@ const sectionTitles = {
   articulos: "Artículos",
   categorias: "Categorías",
   proveedores: "Proveedores",
+  clientes: "Clientes",
+  "listas-precios": "Listas de Precios",
   entradas: "Entradas",
   salidas: "Salidas",
   registros: "Registros",
@@ -39,6 +43,10 @@ export default function Home() {
         return <Categorias />
       case "proveedores":
         return <Proveedores />
+      case "clientes":
+        return <Clientes />
+      case "listas-precios":
+        return <ListasPrecios />
       case "entradas":
         return <Entradas />
       case "salidas":

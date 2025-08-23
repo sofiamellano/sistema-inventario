@@ -13,6 +13,8 @@ import {
   PieChart,
   ChevronLeft,
   Menu,
+  Users,
+  DollarSign,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -25,6 +27,8 @@ const menuItems = [
   { id: "articulos", label: "Artículos", icon: Package },
   { id: "categorias", label: "Categorías", icon: Tags },
   { id: "proveedores", label: "Proveedores", icon: Truck },
+  { id: "clientes", label: "Clientes", icon: Users },
+  { id: "listas-precios", label: "Listas de Precios", icon: DollarSign },
   { id: "entradas", label: "Entradas", icon: ArrowDown },
   { id: "salidas", label: "Salidas", icon: ArrowUp },
   { id: "registros", label: "Registros", icon: RefreshCw },

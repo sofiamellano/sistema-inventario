@@ -74,6 +74,51 @@ export interface RegistroConDetalles extends RegistroOut {
   motivo?: string;
 }
 
+// ==================== NUEVAS INTERFACES ====================
+
+export interface ClientePayload {
+  cliente: string;
+  direccion?: string;
+  localidad?: string;
+  provincia?: string;
+  dni?: string;
+  idtiporesponsable: number;
+  idcomprobante: number;
+  idlistaprecio: number;
+}
+
+export interface ClienteOut extends ClientePayload {
+  idcliente: number;
+  deleted?: number;
+}
+
+export interface ComprobantePayload {
+  comprobante: string;
+}
+
+export interface ComprobanteOut extends ComprobantePayload {
+  idcomprobante: number;
+  deleted?: number;
+}
+
+export interface ListaPrecioPayload {
+  listaprecio: string;
+}
+
+export interface ListaPrecioOut extends ListaPrecioPayload {
+  idlistasprecios: number;
+  deleted?: number;
+}
+
+export interface TipoResponsablePayload {
+  tiporesponsable: string;
+}
+
+export interface TipoResponsableOut extends TipoResponsablePayload {
+  idtiporesponsable: number;
+  deleted?: number;
+}
+
 // ==================== CATEGORÍAS ====================
 
 export async function obtenerCategorias(): Promise<CategoriaOut[]> {
@@ -158,26 +203,18 @@ export async function crearArticulo(data: ArticuloPayload): Promise<ArticuloOut>
 export async function actualizarArticulo(id: number, data: ArticuloPayload): Promise<{ success: boolean }> {
   const url = `${API_URL}?articulos&id=${id}&llave=isp`;
   
-  console.log("actualizarArticulo - URL:", url)
-  console.log("actualizarArticulo - Payload:", JSON.stringify(data, null, 2))
-  
   const res = await fetch(url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   
-  console.log("actualizarArticulo - Status:", res.status)
-  console.log("actualizarArticulo - StatusText:", res.statusText)
-  
   if (!res.ok) {
     const errorText = await res.text();
-    console.log("actualizarArticulo - Error response:", errorText);
     throw new Error(`Error al actualizar artículo: ${res.status} ${res.statusText} - ${errorText}`);
   }
   
   const result = await res.json();
-  console.log("actualizarArticulo - Success response:", result);
   return result;
 }
 
@@ -256,26 +293,18 @@ export async function obtenerRegistrosConDetalles(): Promise<RegistroConDetalles
 export async function crearRegistro(data: RegistroPayload): Promise<RegistroOut> {
   const url = `${API_URL}?registros&llave=isp`;
   
-  console.log("crearRegistro - URL:", url)
-  console.log("crearRegistro - Payload:", JSON.stringify(data, null, 2))
-  
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   
-  console.log("crearRegistro - Status:", res.status)
-  console.log("crearRegistro - StatusText:", res.statusText)
-  
   if (!res.ok) {
     const errorText = await res.text();
-    console.log("crearRegistro - Error response:", errorText);
     throw new Error(`Error al crear registro: ${res.status} ${res.statusText} - ${errorText}`);
   }
   
   const result = await res.json();
-  console.log("crearRegistro - Success response:", result);
   return result;
 }
 
@@ -511,4 +540,192 @@ export function calcularTotalDetalle(cantidad: number, precioUnitario: number): 
 // Función para calcular el total de una lista de detalles
 export function calcularTotalRegistro(detalles: DetallePayload[]): number {
   return detalles.reduce((total, detalle) => total + detalle.total, 0);
+}
+
+// ==================== CLIENTES ====================
+
+export async function obtenerClientes(): Promise<ClienteOut[]> {
+  const url = `${API_URL}?clientes&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener clientes");
+  return res.json();
+}
+
+export async function obtenerClientePorId(id: number): Promise<ClienteOut> {
+  const url = `${API_URL}?clientes&id=${id}&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener cliente");
+  return res.json();
+}
+
+export async function crearCliente(data: ClientePayload): Promise<ClienteOut> {
+  const url = `${API_URL}?clientes&llave=isp`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al crear cliente");
+  return res.json();
+}
+
+export async function actualizarCliente(id: number, data: ClientePayload): Promise<{ success: boolean }> {
+  const url = `${API_URL}?clientes&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al actualizar cliente");
+  return res.json();
+}
+
+export async function eliminarCliente(id: number): Promise<{ deleted: boolean }> {
+  const url = `${API_URL}?clientes&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Error al eliminar cliente");
+  return res.json();
+}
+
+// ==================== COMPROBANTES ====================
+
+export async function obtenerComprobantes(): Promise<ComprobanteOut[]> {
+  const url = `${API_URL}?comprobantes&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener comprobantes");
+  return res.json();
+}
+
+export async function obtenerComprobantePorId(id: number): Promise<ComprobanteOut> {
+  const url = `${API_URL}?comprobantes&id=${id}&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener comprobante");
+  return res.json();
+}
+
+export async function crearComprobante(data: ComprobantePayload): Promise<ComprobanteOut> {
+  const url = `${API_URL}?comprobantes&llave=isp`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al crear comprobante");
+  return res.json();
+}
+
+export async function actualizarComprobante(id: number, data: ComprobantePayload): Promise<{ success: boolean }> {
+  const url = `${API_URL}?comprobantes&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al actualizar comprobante");
+  return res.json();
+}
+
+export async function eliminarComprobante(id: number): Promise<{ deleted: boolean }> {
+  const url = `${API_URL}?comprobantes&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Error al eliminar comprobante");
+  return res.json();
+}
+
+// ==================== LISTAS DE PRECIOS ====================
+
+export async function obtenerListasPrecios(): Promise<ListaPrecioOut[]> {
+  const url = `${API_URL}?listasprecios&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener listas de precios");
+  return res.json();
+}
+
+export async function obtenerListaPrecioPorId(id: number): Promise<ListaPrecioOut> {
+  const url = `${API_URL}?listasprecios&id=${id}&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener lista de precio");
+  return res.json();
+}
+
+export async function crearListaPrecio(data: ListaPrecioPayload): Promise<ListaPrecioOut> {
+  const url = `${API_URL}?listasprecios&llave=isp`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al crear lista de precio");
+  return res.json();
+}
+
+export async function actualizarListaPrecio(id: number, data: ListaPrecioPayload): Promise<{ success: boolean }> {
+  const url = `${API_URL}?listasprecios&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al actualizar lista de precio");
+  return res.json();
+}
+
+export async function eliminarListaPrecio(id: number): Promise<{ deleted: boolean }> {
+  const url = `${API_URL}?listasprecios&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Error al eliminar lista de precio");
+  return res.json();
+}
+
+// ==================== TIPOS DE RESPONSABLES ====================
+
+export async function obtenerTiposResponsables(): Promise<TipoResponsableOut[]> {
+  const url = `${API_URL}?tiposresponsables&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener tipos de responsables");
+  return res.json();
+}
+
+export async function obtenerTipoResponsablePorId(id: number): Promise<TipoResponsableOut> {
+  const url = `${API_URL}?tiposresponsables&id=${id}&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener tipo de responsable");
+  return res.json();
+}
+
+export async function crearTipoResponsable(data: TipoResponsablePayload): Promise<TipoResponsableOut> {
+  const url = `${API_URL}?tiposresponsables&llave=isp`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al crear tipo de responsable");
+  return res.json();
+}
+
+export async function actualizarTipoResponsable(id: number, data: TipoResponsablePayload): Promise<{ success: boolean }> {
+  const url = `${API_URL}?tiposresponsables&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al actualizar tipo de responsable");
+  return res.json();
+}
+
+export async function eliminarTipoResponsable(id: number): Promise<{ deleted: boolean }> {
+  const url = `${API_URL}?tiposresponsables&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Error al eliminar tipo de responsable");
+  return res.json();
 }
