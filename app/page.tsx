@@ -9,6 +9,8 @@ import Categorias from "@/components/categorias"
 import Proveedores from "@/components/proveedores"
 import Clientes from "@/components/clientes"
 import ListasPrecios from "@/components/listas-precios"
+import TiposResponsables from "@/components/tipos-responsables"
+import Comprobantes from "@/components/comprobantes"
 import Entradas from "@/components/entradas"
 import Salidas from "@/components/salidas"
 // Importar el componente de registros
@@ -23,6 +25,9 @@ const sectionTitles = {
   proveedores: "Proveedores",
   clientes: "Clientes",
   "listas-precios": "Listas de Precios",
+  "tipos-responsables": "Tipos Responsables",
+  comprobantes: "Comprobantes",
+  movimientos: "Movimientos",
   entradas: "Entradas",
   salidas: "Salidas",
   registros: "Registros",
@@ -47,6 +52,12 @@ export default function Home() {
         return <Clientes />
       case "listas-precios":
         return <ListasPrecios />
+      case "tipos-responsables":
+        return <TiposResponsables />
+      case "comprobantes":
+        return <Comprobantes />
+      case "movimientos":
+        return <Entradas /> // Por defecto mostrar entradas
       case "entradas":
         return <Entradas />
       case "salidas":

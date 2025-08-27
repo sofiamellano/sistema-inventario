@@ -17,7 +17,7 @@ import {
   type ClienteOut
 } from "@/lib/api"
 import { Plus, Edit, Trash2, Search, FileText, Users } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "react-toastify"
 
 export default function Comprobantes() {
   const [comprobantes, setComprobantes] = useState<ComprobanteOut[]>([])
@@ -114,16 +114,48 @@ export default function Comprobantes() {
       return
     }
 
-    if (window.confirm(`¿Estás seguro de que quieres eliminar el comprobante "${comprobante.comprobante}"?`)) {
-      try {
-        await eliminarComprobante(comprobante.idcomprobante)
-        toast.success("Comprobante eliminado correctamente")
-        await cargarDatos()
-      } catch (error) {
-        toast.error("Error al eliminar el comprobante")
-        console.error(error)
+    toast.info(
+      <div className="text-center">
+        <h3 className="text-lg font-semibold mb-2">¿Eliminar comprobante?</h3>
+        <p className="text-sm mb-4">
+          ¿Estás seguro de que deseas eliminar el comprobante "{comprobante.comprobante}"? 
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex space-x-2 justify-center">
+          <button
+            onClick={() => {
+              toast.dismiss()
+              toast.promise(
+                eliminarComprobante(comprobante.idcomprobante).then(() => cargarDatos()),
+                {
+                  pending: 'Eliminando comprobante...',
+                  success: `Comprobante "${comprobante.comprobante}" eliminado correctamente`,
+                  error: 'Error al eliminar el comprobante',
+                }
+              )
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        hideProgressBar: true,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: false,
+        closeButton: false,
       }
-    }
+    )
   }
 
   const contarClientesPorComprobante = (idComprobante: number) => {
@@ -142,13 +174,11 @@ export default function Comprobantes() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <FileText className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Tipos de Comprobantes</h1>
-          <Badge variant="secondary">{comprobantes.length}</Badge>
+          <h1 className="text-3xl font-bold ml-4">Tipos de Comprobantes</h1>
         </div>
         <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>
           <DialogTrigger asChild>
-            <Button onClick={() => abrirModal()}>
+            <Button onClick={() => abrirModal()} className="mr-4">
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Comprobante
             </Button>
@@ -186,8 +216,8 @@ export default function Comprobantes() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
+      <div className="w-full">
+        <Card className="w-full">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Tipos de Comprobantes</span>
@@ -208,8 +238,8 @@ export default function Comprobantes() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo de Comprobante</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clientes Asignados</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Clientes Asignados</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -223,31 +253,33 @@ export default function Comprobantes() {
                             <div className="text-sm font-medium text-gray-900">{comprobante.comprobante}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center">
                             <Users className="h-4 w-4 text-gray-400 mr-1" />
                             <Badge variant={clientesCount > 0 ? "default" : "secondary"}>
                               {clientesCount} {clientesCount === 1 ? "cliente" : "clientes"}
                             </Badge>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => abrirModal(comprobante)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => manejarEliminar(comprobante)}
-                            className={`${clientesCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
-                            disabled={clientesCount > 0}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => abrirModal(comprobante)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => manejarEliminar(comprobante)}
+                              className={`${clientesCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
+                              disabled={clientesCount > 0}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -262,60 +294,6 @@ export default function Comprobantes() {
             </div>
           </CardContent>
         </Card>
-
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Estadísticas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Comprobantes:</span>
-                <Badge variant="outline">{comprobantes.length}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Clientes:</span>
-                <Badge variant="outline">{clientes.length}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Comprobantes en Uso:</span>
-                <Badge variant="default">
-                  {comprobantes.filter(comp => contarClientesPorComprobante(comp.idcomprobante) > 0).length}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Más Utilizados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {comprobantes
-                  .sort((a, b) => contarClientesPorComprobante(b.idcomprobante) - contarClientesPorComprobante(a.idcomprobante))
-                  .slice(0, 5)
-                  .map((comprobante) => {
-                    const clientesCount = contarClientesPorComprobante(comprobante.idcomprobante)
-                    return (
-                      <div key={comprobante.idcomprobante} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 truncate">{comprobante.comprobante}</span>
-                        <Badge variant={clientesCount > 0 ? "default" : "secondary"} className="ml-2">
-                          {clientesCount}
-                        </Badge>
-                      </div>
-                    )
-                  })
-                }
-                {comprobantes.length === 0 && (
-                  <div className="text-sm text-gray-500 text-center">
-                    No hay comprobantes registrados
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   )

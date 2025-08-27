@@ -12,9 +12,14 @@ import {
   RefreshCw,
   PieChart,
   ChevronLeft,
+  ChevronDown,
+  ChevronRight,
   Menu,
   Users,
   DollarSign,
+  FileText,
+  UserCheck,
+  TrendingUpDown,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -22,16 +27,39 @@ interface SidebarProps {
   onSectionChange: (section: string) => void
 }
 
-const menuItems = [
+interface MenuItem {
+  id: string
+  label: string
+  icon: any
+  subItems?: MenuItem[]
+}
+
+const menuItems: MenuItem[] = [
   { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-  { id: "articulos", label: "Artículos", icon: Package },
-  { id: "categorias", label: "Categorías", icon: Tags },
-  { id: "proveedores", label: "Proveedores", icon: Truck },
-  { id: "clientes", label: "Clientes", icon: Users },
-  { id: "listas-precios", label: "Listas de Precios", icon: DollarSign },
-  { id: "entradas", label: "Entradas", icon: ArrowDown },
-  { id: "salidas", label: "Salidas", icon: ArrowUp },
-  { id: "registros", label: "Registros", icon: RefreshCw },
+  { 
+    id: "articulos", 
+    label: "Artículos", 
+    icon: Package,
+    subItems: [
+      { id: "articulos", label: "Artículos", icon: Package },
+      { id: "categorias", label: "Categorías", icon: Tags },
+      { id: "listas-precios", label: "Listas de Precios", icon: DollarSign },
+      { id: "proveedores", label: "Proveedores", icon: Truck },
+      { id: "clientes", label: "Clientes", icon: Users },
+    ]
+  },
+  { id: "tipos-responsables", label: "Tipos Responsables", icon: UserCheck },
+  { id: "comprobantes", label: "Comprobantes", icon: FileText },
+  { 
+    id: "movimientos", 
+    label: "Movimientos", 
+    icon: TrendingUpDown,
+    subItems: [
+      { id: "entradas", label: "Entradas", icon: ArrowDown },
+      { id: "salidas", label: "Salidas", icon: ArrowUp },
+      { id: "registros", label: "Registros", icon: RefreshCw },
+    ]
+  },
   { id: "reportes", label: "Reportes", icon: PieChart },
 ]
 
@@ -39,6 +67,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [hasActiveToast, setHasActiveToast] = useState(false)
+  const [expandedItems, setExpandedItems] = useState<string[]>(["articulos", "movimientos"]) // Por defecto expandidos
 
   // Detectar si hay toasts activos
   useEffect(() => {
@@ -51,6 +80,59 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     const interval = setInterval(checkForActiveToasts, 100)
     return () => clearInterval(interval)
   }, [])
+
+  const toggleExpanded = (itemId: string) => {
+    setExpandedItems(prev => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    )
+  }
+
+  const renderMenuItem = (item: MenuItem, level = 0) => {
+    const Icon = item.icon
+    const isExpanded = expandedItems.includes(item.id)
+    const hasSubItems = item.subItems && item.subItems.length > 0
+    const isActive = activeSection === item.id
+    
+    return (
+      <div key={item.id}>
+        <button
+          onClick={() => {
+            if (!hasActiveToast) {
+              if (hasSubItems && !isCollapsed) {
+                toggleExpanded(item.id)
+              } else {
+                onSectionChange(item.id)
+                setIsMobileOpen(false)
+              }
+            }
+          }}
+          disabled={hasActiveToast}
+          className={`
+            w-full flex items-center justify-between p-2 rounded transition-colors
+            ${level > 0 ? "ml-4 text-sm" : ""}
+            ${isActive ? "bg-blue-600 text-white" : ""}
+            ${hasActiveToast ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-700"}
+          `}
+        >
+          <div className="flex items-center space-x-2">
+            <Icon className="w-6 h-6" />
+            {!isCollapsed && <span>{item.label}</span>}
+          </div>
+          {!isCollapsed && hasSubItems && (
+            isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+          )}
+        </button>
+        
+        {!isCollapsed && hasSubItems && isExpanded && (
+          <div className="ml-2 mt-1 space-y-1">
+            {item.subItems?.map(subItem => renderMenuItem(subItem, level + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <>
@@ -79,29 +161,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4">
           <div className="space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (!hasActiveToast) {
-                      onSectionChange(item.id)
-                      setIsMobileOpen(false)
-                    }
-                  }}
-                  disabled={hasActiveToast}
-                  className={`
-                    w-full flex items-center space-x-2 p-2 rounded transition-colors
-                    ${activeSection === item.id ? "bg-blue-600 text-white" : ""}
-                    ${hasActiveToast ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-700"}
-                  `}
-                >
-                  <Icon className="w-6 h-6" />
-                  {!isCollapsed && <span>{item.label}</span>}
-                </button>
-              )
-            })}
+            {menuItems.map((item) => renderMenuItem(item))}
           </div>
         </nav>
 

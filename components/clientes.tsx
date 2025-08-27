@@ -14,6 +14,7 @@ import {
     eliminarCliente,
     obtenerTiposResponsables,
     obtenerComprobantes,
+    crearComprobante,
     obtenerListasPrecios,
     type ClienteOut, 
     type ClientePayload,
@@ -22,7 +23,7 @@ import {
     type ListaPrecioOut
 } from "@/lib/api"
 import { Plus, Edit, Trash2, Search, Users } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "react-toastify"
 
 export default function Clientes() {
   const [clientes, setClientes] = useState<ClienteOut[]>([])
@@ -41,7 +42,7 @@ export default function Clientes() {
     provincia: "",
     dni: "",
     idtiporesponsable: 0,
-    idcomprobante: 0,
+    idcomprobante: -1, // -1 indica "no seleccionado"
     idlistaprecio: 0,
   })
 
@@ -58,9 +59,17 @@ export default function Clientes() {
         obtenerComprobantes(),
         obtenerListasPrecios()
       ])
+      
+      // Mapear IDs de comprobantes - si vienen con ID 0, usar ID 1 que es el real en BD
+      const comprobantesCorregidos = comprobantesData.map(comp => ({
+        ...comp,
+        idcomprobante: comp.idcomprobante === 0 ? 1 : comp.idcomprobante
+      }))
+      
+      
       setClientes(clientesData)
       setTiposResponsables(tiposData)
-      setComprobantes(comprobantesData)
+      setComprobantes(comprobantesCorregidos)
       setListasPrecios(listasData)
     } catch (error) {
       toast.error("Error al cargar los datos")
@@ -84,7 +93,7 @@ export default function Clientes() {
       provincia: "",
       dni: "",
       idtiporesponsable: 0,
-      idcomprobante: 0,
+      idcomprobante: -1, // -1 indica "no seleccionado"
       idlistaprecio: 0,
     })
     setClienteSeleccionado(null)
@@ -127,7 +136,7 @@ export default function Clientes() {
       return
     }
 
-    if (formData.idcomprobante === 0) {
+    if (formData.idcomprobante === -1) {
       toast.error("Debe seleccionar un tipo de comprobante")
       return
     }
@@ -142,7 +151,7 @@ export default function Clientes() {
         await actualizarCliente(clienteSeleccionado.idcliente, formData)
         toast.success("Cliente actualizado correctamente")
       } else {
-        await crearCliente(formData)
+        const resultado = await crearCliente(formData)
         toast.success("Cliente creado correctamente")
       }
       
@@ -155,16 +164,48 @@ export default function Clientes() {
   }
 
   const manejarEliminar = async (cliente: ClienteOut) => {
-    if (window.confirm(`¿Estás seguro de que quieres eliminar el cliente "${cliente.cliente}"?`)) {
-      try {
-        await eliminarCliente(cliente.idcliente)
-        toast.success("Cliente eliminado correctamente")
-        await cargarDatos()
-      } catch (error) {
-        toast.error("Error al eliminar el cliente")
-        console.error(error)
+    toast.info(
+      <div className="text-center">
+        <h3 className="text-lg font-semibold mb-2">¿Eliminar cliente?</h3>
+        <p className="text-sm mb-4">
+          ¿Estás seguro de que deseas eliminar el cliente "{cliente.cliente}"? 
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex space-x-2 justify-center">
+          <button
+            onClick={() => {
+              toast.dismiss()
+              toast.promise(
+                eliminarCliente(cliente.idcliente).then(() => cargarDatos()),
+                {
+                  pending: 'Eliminando cliente...',
+                  success: `Cliente "${cliente.cliente}" eliminado correctamente`,
+                  error: 'Error al eliminar el cliente',
+                }
+              )
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        hideProgressBar: true,
+        closeOnClick: false,
+        pauseOnHover: true,
+        draggable: false,
+        closeButton: false,
       }
-    }
+    )
   }
 
   const obtenerNombreTipoResponsable = (id: number) => {
@@ -190,17 +231,16 @@ export default function Clientes() {
     )
   }
 
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Users className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Clientes</h1>
-          <Badge variant="secondary">{clientes.length}</Badge>
+        <h1 className="text-3xl font-bold ml-4">Lista de Clientes</h1>
         </div>
         <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>
           <DialogTrigger asChild>
-            <Button onClick={() => abrirModal()}>
+            <Button onClick={() => abrirModal()} className="mr-4">
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Cliente
             </Button>
@@ -264,11 +304,11 @@ export default function Clientes() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Responsable *</label>
                   <Select 
-                    value={formData.idtiporesponsable.toString()} 
+                    value={formData.idtiporesponsable === 0 ? "" : formData.idtiporesponsable.toString()} 
                     onValueChange={(value) => setFormData({ ...formData, idtiporesponsable: parseInt(value) })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
+                      <SelectValue placeholder="Seleccionar tipo de responsable" />
                     </SelectTrigger>
                     <SelectContent>
                       {tiposResponsables.map((tipo) => (
@@ -282,29 +322,49 @@ export default function Clientes() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Comprobante *</label>
                   <Select 
-                    value={formData.idcomprobante.toString()} 
-                    onValueChange={(value) => setFormData({ ...formData, idcomprobante: parseInt(value) })}
+                    value={formData.idcomprobante === -1 ? "" : formData.idcomprobante.toString()} 
+                    onValueChange={(value) => {
+                      const idComprobante = parseInt(value)
+                      setFormData(prev => ({
+                        ...prev,
+                        idcomprobante: idComprobante
+                      }))
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
+                      <SelectValue placeholder="Seleccionar tipo de comprobante" />
                     </SelectTrigger>
                     <SelectContent>
-                      {comprobantes.map((comprobante) => (
-                        <SelectItem key={comprobante.idcomprobante} value={comprobante.idcomprobante.toString()}>
-                          {comprobante.comprobante}
-                        </SelectItem>
-                      ))}
+                      {comprobantes.length > 0 ? (
+                        <>
+                          {comprobantes.map((comprobante, index) => {
+                            return (
+                              <SelectItem 
+                                key={`comp-${comprobante.idcomprobante}-${index}`} 
+                                value={comprobante.idcomprobante.toString()}
+                              >
+                                {comprobante.comprobante}
+                              </SelectItem>
+                            )
+                          })}
+                        </>
+                      ) : (
+                        <SelectItem value="0" disabled>No hay comprobantes disponibles</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
+                  {comprobantes.length === 0 && (
+                    <p className="text-xs text-red-500 mt-1">No se pudieron cargar los tipos de comprobante</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Lista de Precios *</label>
                   <Select 
-                    value={formData.idlistaprecio.toString()} 
+                    value={formData.idlistaprecio === 0 ? "" : formData.idlistaprecio.toString()} 
                     onValueChange={(value) => setFormData({ ...formData, idlistaprecio: parseInt(value) })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
+                      <SelectValue placeholder="Seleccionar lista de precios" />
                     </SelectTrigger>
                     <SelectContent>
                       {listasPrecios.map((lista) => (
@@ -333,7 +393,6 @@ export default function Clientes() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Lista de Clientes</span>
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-gray-400" />
               <Input

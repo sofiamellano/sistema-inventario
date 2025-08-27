@@ -17,7 +17,7 @@ import {
   type ClienteOut
 } from "@/lib/api"
 import { Plus, Edit, Trash2, Search, Shield, Users } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "react-toastify"
 
 export default function TiposResponsables() {
   const [tiposResponsables, setTiposResponsables] = useState<TipoResponsableOut[]>([])
@@ -114,16 +114,50 @@ export default function TiposResponsables() {
       return
     }
 
-    if (window.confirm(`¿Estás seguro de que quieres eliminar el tipo de responsable "${tipo.tiporesponsable}"?`)) {
-      try {
-        await eliminarTipoResponsable(tipo.idtiporesponsable)
-        toast.success("Tipo de responsable eliminado correctamente")
-        await cargarDatos()
-      } catch (error) {
-        toast.error("Error al eliminar el tipo de responsable")
-        console.error(error)
+    toast.info(
+      <div className="text-center">
+        <h3 className="text-lg font-semibold mb-2">¿Eliminar tipo de responsable?</h3>
+        <p className="text-sm mb-4">
+          ¿Estás seguro de que deseas eliminar el tipo "{tipo.tiporesponsable}"? 
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex space-x-2 justify-center">
+          <button
+            onClick={() => {
+              toast.dismiss()
+              toast.promise(
+                eliminarTipoResponsable(tipo.idtiporesponsable).then(() => cargarDatos()),
+                {
+                  pending: 'Eliminando tipo de responsable...',
+                  success: `Tipo "${tipo.tiporesponsable}" eliminado correctamente`,
+                  error: 'Error al eliminar el tipo de responsable',
+                }
+              )
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            onClick={() => toast.dismiss()}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        closeOnClick: false,
+        draggable: false,
+        closeButton: false,
+        style: {
+          minWidth: '400px',
+          maxWidth: '500px'
+        }
       }
-    }
+    )
   }
 
   const contarClientesPorTipo = (idTipo: number) => {
@@ -142,13 +176,11 @@ export default function TiposResponsables() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Shield className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Tipos de Responsables</h1>
-          <Badge variant="secondary">{tiposResponsables.length}</Badge>
+          <h1 className="text-3xl font-bold ml-4">Tipos de Responsables</h1>
         </div>
         <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>
           <DialogTrigger asChild>
-            <Button onClick={() => abrirModal()}>
+            <Button onClick={() => abrirModal()} className="mr-4">
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Tipo de Responsable
             </Button>
@@ -264,58 +296,6 @@ export default function TiposResponsables() {
         </Card>
 
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Estadísticas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Tipos:</span>
-                <Badge variant="outline">{tiposResponsables.length}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Clientes:</span>
-                <Badge variant="outline">{clientes.length}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Tipos en Uso:</span>
-                <Badge variant="default">
-                  {tiposResponsables.filter(tipo => contarClientesPorTipo(tipo.idtiporesponsable) > 0).length}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Más Utilizados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {tiposResponsables
-                  .sort((a, b) => contarClientesPorTipo(b.idtiporesponsable) - contarClientesPorTipo(a.idtiporesponsable))
-                  .slice(0, 5)
-                  .map((tipo) => {
-                    const clientesCount = contarClientesPorTipo(tipo.idtiporesponsable)
-                    return (
-                      <div key={tipo.idtiporesponsable} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 truncate">{tipo.tiporesponsable}</span>
-                        <Badge variant={clientesCount > 0 ? "default" : "secondary"} className="ml-2">
-                          {clientesCount}
-                        </Badge>
-                      </div>
-                    )
-                  })
-                }
-                {tiposResponsables.length === 0 && (
-                  <div className="text-sm text-gray-500 text-center">
-                    No hay tipos registrados
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center">

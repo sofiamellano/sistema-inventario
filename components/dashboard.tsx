@@ -158,7 +158,7 @@ export default function Dashboard() {
 
       {/* Gráficos principales */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Movimientos por Mes" icon={<BarChart3 />} height={300}>
+        <ChartCard title="Movimientos por Mes" icon={<BarChart3 />}>
           <BarChart data={movimientosPorMes}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="mes" />
@@ -170,7 +170,7 @@ export default function Dashboard() {
           </BarChart>
         </ChartCard>
 
-        <ChartCard title="Tendencia de Valor (Últimos 7 días)" icon={<TrendingUp />} height={300}>
+        <ChartCard title="Tendencia de Valor (Últimos 7 días)" icon={<TrendingUp />}>
           <AreaChart data={tendenciaMovimientos}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="fecha" />
@@ -198,7 +198,7 @@ export default function Dashboard() {
 
       {/* Gráficos secundarios */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Stock por Categoría" icon={<Package />} height={300}>
+        <ChartCard title="Stock por Categoría" icon={<Package />}>
           <LineChart data={stockPorCategoria}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="categoria" />
@@ -210,7 +210,7 @@ export default function Dashboard() {
           </LineChart>
         </ChartCard>
 
-        <ChartCard title="Valor del Inventario por Categoría" icon={<TrendingDown />} height={300}>
+        <ChartCard title="Valor del Inventario por Categoría" icon={<TrendingDown />}>
           <PieChart>
             <Pie
               data={valorInventario}
@@ -300,8 +300,8 @@ function StatCard({ icon, label, value, hint, color }: {
   )
 }
 
-function ChartCard({ title, icon, children, height }: {
-  title: string; icon: ReactElement; children: ReactElement; height: number
+function ChartCard({ title, icon, children }: {
+  title: string; icon: ReactElement; children: ReactElement;
 }) {
   return (
     <Card>
@@ -310,10 +310,8 @@ function ChartCard({ title, icon, children, height }: {
         <div className="text-muted-foreground">{icon}</div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className={`h-[${height}px]`}>
-          <ResponsiveContainer width="100%" height="100%">
-            {children ?? <></>}
-          </ResponsiveContainer>
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          {children ?? <></>}
         </ChartContainer>
       </CardContent>
     </Card>

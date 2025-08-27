@@ -565,7 +565,9 @@ export async function crearCliente(data: ClientePayload): Promise<ClienteOut> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Error al crear cliente");
+  if (!res.ok) {
+    throw new Error("Error al crear cliente");
+  }
   return res.json();
 }
 

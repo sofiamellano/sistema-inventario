@@ -17,7 +17,7 @@ import {
   type ClienteOut
 } from "@/lib/api"
 import { Plus, Edit, Trash2, Search, DollarSign, Users } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "react-toastify"
 
 export default function ListasPrecios() {
   const [listasPrecios, setListasPrecios] = useState<ListaPrecioOut[]>([])
@@ -114,16 +114,50 @@ export default function ListasPrecios() {
       return
     }
 
-    if (window.confirm(`¿Estás seguro de que quieres eliminar la lista de precios "${lista.listaprecio}"?`)) {
-      try {
-        await eliminarListaPrecio(lista.idlistasprecios)
-        toast.success("Lista de precios eliminada correctamente")
-        await cargarDatos()
-      } catch (error) {
-        toast.error("Error al eliminar la lista de precios")
-        console.error(error)
-      }
-    }
+    toast.info(
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">¿Eliminar lista?</h3>
+            <p className="text-sm mb-4">
+              ¿Estás seguro de que deseas eliminar la lista "{lista.listaprecio}"? 
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex space-x-2 justify-center">
+              <button
+                onClick={() => {
+                  toast.dismiss()
+                  toast.promise(
+                    eliminarListaPrecio(lista.idlistasprecios).then(() => cargarDatos()),
+                    {
+                      pending: 'Eliminando lista...',
+                      success: `Lista "${lista.listaprecio}" eliminada correctamente`,
+                      error: 'Error al eliminar la lista',
+                    }
+                  )
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              >
+                Sí, eliminar
+              </button>
+              <button
+                onClick={() => toast.dismiss()}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>,
+          {
+            position: "top-center",
+            autoClose: false,
+            closeOnClick: false,
+            draggable: false,
+            closeButton: false,
+            style: {
+              minWidth: '400px',
+              maxWidth: '500px'
+            }
+          }
+        )
   }
 
   const contarClientesPorLista = (idLista: number) => {
@@ -142,13 +176,11 @@ export default function ListasPrecios() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <DollarSign className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Listas de Precios</h1>
-          <Badge variant="secondary">{listasPrecios.length}</Badge>
+          <h1 className="text-3xl font-bold ml-4">Listas de Precios</h1>
         </div>
         <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>
           <DialogTrigger asChild>
-            <Button onClick={() => abrirModal()}>
+            <Button onClick={() => abrirModal()} className="mr-4">
               <Plus className="mr-2 h-4 w-4" />
               Nueva Lista de Precios
             </Button>
@@ -186,8 +218,8 @@ export default function ListasPrecios() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
+      <div className="w-full">
+        <Card className="w-full">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Listas de Precios</span>
@@ -197,19 +229,19 @@ export default function ListasPrecios() {
                   placeholder="Buscar lista..."
                   value={filtroListas}
                   onChange={(e) => setFiltroListas(e.target.value)}
-                  className="w-48"
+                  className="w-80"
                 />
               </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clientes Asignados</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Nombre</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Clientes Asignados</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -217,37 +249,39 @@ export default function ListasPrecios() {
                     const clientesCount = contarClientesPorLista(lista.idlistasprecios)
                     return (
                       <tr key={lista.idlistasprecios} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap w-1/2">
                           <div className="flex items-center">
                             <DollarSign className="h-5 w-5 text-green-500 mr-2" />
                             <div className="text-sm font-medium text-gray-900">{lista.listaprecio}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
+                        <td className="px-6 py-4 whitespace-nowrap text-center w-1/4">
+                          <div className="flex items-center justify-center">
                             <Users className="h-4 w-4 text-gray-400 mr-1" />
                             <Badge variant={clientesCount > 0 ? "default" : "secondary"}>
                               {clientesCount} {clientesCount === 1 ? "cliente" : "clientes"}
                             </Badge>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => abrirModal(lista)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => manejarEliminar(lista)}
-                            className={`${clientesCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
-                            disabled={clientesCount > 0}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <td className="px-6 py-4 whitespace-nowrap text-center w-1/4">
+                          <div className="flex items-center justify-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => abrirModal(lista)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => manejarEliminar(lista)}
+                              className={`${clientesCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
+                              disabled={clientesCount > 0}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -262,60 +296,6 @@ export default function ListasPrecios() {
             </div>
           </CardContent>
         </Card>
-
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Estadísticas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Listas:</span>
-                <Badge variant="outline">{listasPrecios.length}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Clientes:</span>
-                <Badge variant="outline">{clientes.length}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Listas en Uso:</span>
-                <Badge variant="default">
-                  {listasPrecios.filter(lista => contarClientesPorLista(lista.idlistasprecios) > 0).length}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Listas Más Utilizadas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {listasPrecios
-                  .sort((a, b) => contarClientesPorLista(b.idlistasprecios) - contarClientesPorLista(a.idlistasprecios))
-                  .slice(0, 5)
-                  .map((lista) => {
-                    const clientesCount = contarClientesPorLista(lista.idlistasprecios)
-                    return (
-                      <div key={lista.idlistasprecios} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 truncate">{lista.listaprecio}</span>
-                        <Badge variant={clientesCount > 0 ? "default" : "secondary"} className="ml-2">
-                          {clientesCount}
-                        </Badge>
-                      </div>
-                    )
-                  })
-                }
-                {listasPrecios.length === 0 && (
-                  <div className="text-sm text-gray-500 text-center">
-                    No hay listas registradas
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   )

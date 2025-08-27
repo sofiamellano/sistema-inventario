@@ -4,7 +4,11 @@ import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
 export const metadata: Metadata = {
-  title: 'Inventario',
+  title: 'Sistema de Inventario',
+  description: 'Sistema completo de gestión de inventario con clientes y proveedores',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
