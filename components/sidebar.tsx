@@ -20,6 +20,7 @@ import {
   FileText,
   UserCheck,
   TrendingUpDown,
+  Settings,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -48,8 +49,6 @@ const menuItems: MenuItem[] = [
       { id: "clientes", label: "Clientes", icon: Users },
     ]
   },
-  { id: "tipos-responsables", label: "Tipos Responsables", icon: UserCheck },
-  { id: "comprobantes", label: "Comprobantes", icon: FileText },
   { 
     id: "movimientos", 
     label: "Movimientos", 
@@ -60,6 +59,14 @@ const menuItems: MenuItem[] = [
       { id: "registros", label: "Registros", icon: RefreshCw },
     ]
   },
+  { id: "configuraciones",
+    label: "Configuraciones",
+    icon: Settings,
+    subItems: [
+      { id: "tipos-responsables", label: "Tipos Responsables", icon: UserCheck },
+      { id: "comprobantes", label: "Comprobantes", icon: FileText },
+    ]
+  },
   { id: "reportes", label: "Reportes", icon: PieChart },
 ]
 
@@ -67,7 +74,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [hasActiveToast, setHasActiveToast] = useState(false)
-  const [expandedItems, setExpandedItems] = useState<string[]>(["articulos", "movimientos"]) // Por defecto expandidos
+  const [expandedItems, setExpandedItems] = useState<string[]>([])
 
   // Detectar si hay toasts activos
   useEffect(() => {
