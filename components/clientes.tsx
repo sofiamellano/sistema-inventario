@@ -147,19 +147,28 @@ export default function Clientes() {
     }
 
     try {
-      if (clienteSeleccionado) {
-        await actualizarCliente(clienteSeleccionado.idcliente, formData)
-        toast.success("Cliente actualizado correctamente")
-      } else {
-        const resultado = await crearCliente(formData)
-        toast.success("Cliente creado correctamente")
-      }
-      
-      await cargarDatos()
-      cerrarModal()
-    } catch (error) {
-      toast.error("Error al guardar el cliente")
-      console.error(error)
+          if (clienteSeleccionado) {
+            await actualizarCliente(clienteSeleccionado.idcliente, formData)
+            toast.success("Cliente actualizado correctamente")
+          } else {
+      console.log("Payload enviado al crear cliente:", formData);
+      console.log("ID Tipo Responsable:", formData.idtiporesponsable);
+      console.log("ID Comprobante:", formData.idcomprobante);
+      console.log("ID Lista Precio:", formData.idlistaprecio);
+            const resultado = await crearCliente(formData)
+            toast.success("Cliente creado correctamente")
+          }
+          await cargarDatos()
+          cerrarModal()
+        } catch (error: any) {
+          let msg = "Error al guardar el cliente";
+          if (error instanceof Error) {
+            msg += ": " + error.message;
+          } else if (typeof error === "string") {
+            msg += ": " + error;
+          }
+          toast.error(msg);
+          console.error(error)
     }
   }
 

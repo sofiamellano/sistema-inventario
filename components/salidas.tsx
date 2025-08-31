@@ -35,7 +35,7 @@ interface DetalleSalida {
   fecha?: string
 }
 
-const motivosSalida = ["Venta", "Transferencia", "Devolución", "Merma", "Uso interno", "Donación", "Otro"]
+const motivosSalida = ["Venta", "Devolución"]
 
 export default function Salidas() {
   const [articulos, setArticulos] = useState<ArticuloOut[]>([])
@@ -149,17 +149,24 @@ export default function Salidas() {
       return
     }
 
-    const total = nuevoDetalle.cantidad * Number(articulo.precio_venta)
-    console.log("Total calculado:", total)
+      // Ajustar el signo de la cantidad según el motivo
+      let cantidadFinal = nuevoDetalle.cantidad;
+      if (salidaData.motivo === "Venta") {
+        cantidadFinal = -Math.abs(nuevoDetalle.cantidad);
+      } else if (salidaData.motivo === "Devolución") {
+        cantidadFinal = Math.abs(nuevoDetalle.cantidad);
+      }
+      const total = Math.abs(cantidadFinal) * Number(articulo.precio_venta);
+      console.log("Total calculado:", total);
 
-    const detalle: DetalleSalida = {
-      idarticulo: nuevoDetalle.idarticulo,
-      articulo: articulo.articulo,
-      cantidad: nuevoDetalle.cantidad,
-      stock_disponible: Number(articulo.stock_actual),
-      precio_unitario: Number(articulo.precio_venta),
-      total,
-    }
+      const detalle: DetalleSalida = {
+        idarticulo: nuevoDetalle.idarticulo,
+        articulo: articulo.articulo,
+        cantidad: cantidadFinal,
+        stock_disponible: Number(articulo.stock_actual),
+        precio_unitario: Number(articulo.precio_venta),
+        total,
+      }
 
     console.log("Detalle a agregar:", detalle)
     setDetalles([...detalles, detalle])
@@ -273,18 +280,22 @@ export default function Salidas() {
           fecha: salidaData.fecha,
         }
 
-        console.log("Creando detalle:", detallePayload)
+  // ...existing code...
         await crearDetalle(detallePayload)
 
         // Actualizar el stock del artículo (disminuir)
         const articulo = articulos.find((a) => a.idarticulo === detalle.idarticulo || a.idarticulo === Number(detalle.idarticulo) || Number(a.idarticulo) === detalle.idarticulo)
         if (articulo) {
-          const nuevoStock = Number(articulo.stock_actual) - detalle.cantidad
-          console.log(`Actualizando stock de ${articulo.articulo}: ${articulo.stock_actual} -> ${nuevoStock}`)
+          let nuevoStock = Number(articulo.stock_actual);
+          if (detalle.cantidad < 0) {
+            nuevoStock = nuevoStock + detalle.cantidad; // cantidad negativa, resta
+          } else {
+            nuevoStock = nuevoStock + detalle.cantidad; // cantidad positiva, suma
+          }
           await actualizarArticulo(articulo.idarticulo, {
             ...articulo,
             stock_actual: nuevoStock,
-          })
+          });
         }
       }
 
