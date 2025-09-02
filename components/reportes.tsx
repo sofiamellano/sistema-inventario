@@ -455,8 +455,8 @@ export default function Reportes() {
                 <CardTitle>Vista Previa de Datos</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                <div style={{ width: '100%', overflowX: 'auto' }}>
+                  <table className="w-full divide-y divide-gray-200" style={{ minWidth: '1200px' }}>
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Detalle</th>

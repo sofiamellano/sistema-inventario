@@ -72,7 +72,7 @@ export const generarReportePDF = async (
   categorias: CategoriaOut[],
   articulos: ArticuloOut[],
 ) => {
-  const doc = new jsPDF()
+  const doc = new jsPDF({ orientation: 'landscape' })
   let yPosition = configurarPDF(doc, "Reporte de Movimientos de Inventario")
 
   // SECCIÓN 1: Mostrar los filtros aplicados en el reporte
@@ -165,9 +165,12 @@ export const generarReportePDF = async (
     head: [columnas],
     body: filas,
     startY: yPosition,
+    margin: { left: 15, right: 5 },
+    tableWidth: 'wrap',
     styles: {
       fontSize: 8,
-      cellPadding: 3,
+      cellPadding: 2,
+      overflow: 'linebreak',
     },
     headStyles: {
       fillColor: [66, 139, 202], // Azul para encabezados
@@ -178,16 +181,16 @@ export const generarReportePDF = async (
       fillColor: [245, 245, 245], // Gris claro para filas alternas
     },
     columnStyles: {
-      0: { cellWidth: 25 },
-      1: { cellWidth: 20 },
-      2: { cellWidth: 25 },
-      3: { cellWidth: 30 },
-      4: { cellWidth: 30 },
-      5: { cellWidth: 30 },
-      6: { cellWidth: 30 },
-      7: { cellWidth: 15 },
-      8: { cellWidth: 25 },
-      9: { cellWidth: 20, halign: "right" }, // Alinear totales a la derecha
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 'auto' },
+      3: { cellWidth: 'auto' },
+      4: { cellWidth: 'auto' },
+      5: { cellWidth: 'auto' },
+      6: { cellWidth: 'auto' },
+      7: { cellWidth: 'auto' },
+      8: { cellWidth: 'auto' },
+      9: { cellWidth: 'auto', halign: "right" },
     },
   });
 
