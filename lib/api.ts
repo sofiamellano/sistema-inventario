@@ -1,3 +1,27 @@
+// Login de usuario
+export interface LoginPayload {
+  usuario: string;
+  pass: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  idusuario?: number;
+  usuario?: string;
+  email?: string;
+  error?: string;
+}
+
+export async function login(data: LoginPayload): Promise<LoginResponse> {
+  const url = `${API_URL}?login&llave=isp`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al iniciar sesión");
+  return res.json();
+}
 const API_URL = "https://i20.com.ar/api_sofia/api.php";
 
 // Interfaces tipadas

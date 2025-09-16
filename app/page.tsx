@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Sidebar from "@/components/sidebar"
 import Header from "@/components/header"
 import Dashboard from "@/components/dashboard"
@@ -34,7 +34,18 @@ const sectionTitles = {
 }
 
 export default function Home() {
+  useEffect(() => {
+    const usuario = localStorage.getItem("usuario");
+    if (!usuario) {
+      window.location.replace("/login");
+    }
+  }, []);
   const [activeSection, setActiveSection] = useState("dashboard")
+  const [usuario, setUsuario] = useState<string | null>(null);
+  useEffect(() => {
+    const user = localStorage.getItem("usuario");
+    setUsuario(user);
+  }, []);
 
   const renderContent = () => {
     switch (activeSection) {
@@ -72,10 +83,9 @@ export default function Home() {
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-
       <div className="flex-1 flex flex-col overflow-hidden md:ml-64">
         <Header title={sectionTitles[activeSection as keyof typeof sectionTitles]} />
-
+        {/* Eliminado barra superior de usuario y cerrar sesión, ahora está en el sidebar */}
         <main className="flex-1 overflow-y-auto bg-gray-50">{renderContent()}</main>
       </div>
     </div>

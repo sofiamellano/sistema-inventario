@@ -83,7 +83,6 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       setHasActiveToast(toastElements.length > 0)
     }
 
-    // Verificar cada 100ms si hay toasts activos
     const interval = setInterval(checkForActiveToasts, 100)
     return () => clearInterval(interval)
   }, [])
@@ -182,12 +181,47 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
             {!isCollapsed && <span>Contraer</span>}
           </button>
         </div>
+
+        {/* Usuario y cerrar sesión */}
+        <SidebarFooter />
       </div>
 
       {/* Mobile overlay */}
       {isMobileOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden" onClick={() => setIsMobileOpen(false)} />
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden" 
+          onClick={() => setIsMobileOpen(false)} 
+        />
       )}
     </>
   )
+}
+
+// Footer del sidebar con usuario y logout
+function SidebarFooter() {
+  const [usuario, setUsuario] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUsuario(localStorage.getItem("usuario"));
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("idusuario");
+    window.location.href = "/inventario/login/";
+  };
+
+  return (
+    <div className="w-full flex flex-col items-center mb-4 mt-auto">
+      <div className="w-11/12 mb-2 bg-gray-100 rounded-lg p-3 text-center text-sm text-gray-700">
+        Usuario: <span className="font-semibold">{usuario || "-"}</span>
+      </div>
+      <button
+        className="bg-red-500 text-white px-4 py-2 rounded w-11/12"
+        onClick={handleLogout}
+      >
+        Cerrar sesión
+      </button>
+    </div>
+  );
 }

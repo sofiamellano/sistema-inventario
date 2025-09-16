@@ -1,3 +1,5 @@
+"use client";
+import { login } from "@/lib/api";
 import React, { useState } from 'react';
 
 interface LoginProps {
@@ -16,45 +18,59 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             return;
         }
         setError('');
-        if (onLogin) {
-            onLogin(username, password);
-        }
-        // Aquí podrías agregar lógica de autenticación real
+        // Usar la función login de api.ts
+        login({ usuario: username, pass: password })
+            .then(data => {
+                if (data.success) {
+                    // Guardar datos de sesión en localStorage
+                    localStorage.setItem("usuario", data.usuario || username);
+                    localStorage.setItem("idusuario", String(data.idusuario || ""));
+                    window.location.href = '/inventario';
+                } else {
+                    setError(data.error || 'Usuario o contraseña incorrectos.');
+                }
+            })
+            .catch(() => setError('Error de conexión con el servidor.'));
     };
 
     return (
-        <div style={{ maxWidth: 400, margin: '0 auto', padding: 24 }}>
-            <h2>Iniciar Sesión</h2>
-            <form onSubmit={handleSubmit}>
-                <div style={{ marginBottom: 16 }}>
-                    <label htmlFor="username">Usuario</label>
-                    <input
-                        id="username"
-                        type="text"
-                        value={username}
-                        onChange={e => setUsername(e.target.value)}
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                        autoComplete="username"
-                    />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                    <label htmlFor="password">Contraseña</label>
-                    <input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        style={{ width: '100%', padding: 8, marginTop: 4 }}
-                        autoComplete="current-password"
-                    />
-                </div>
-                {error && (
-                    <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>
-                )}
-                <button type="submit" style={{ width: '100%', padding: 10 }}>
-                    Entrar
-                </button>
-            </form>
+        <div className="min-h-screen w-full flex items-center justify-center bg-white">
+            <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 border border-gray-200 flex flex-col justify-center">
+                <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">Iniciar Sesión en Inventario</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+                        <input
+                            id="username"
+                            type="text"
+                            value={username}
+                            onChange={e => setUsername(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            autoComplete="username"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                        <input
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            autoComplete="current-password"
+                        />
+                    </div>
+                    {error && (
+                        <div className="text-red-600 text-sm text-center py-2 bg-red-50 rounded-lg border border-red-200">{error}</div>
+                    )}
+                    <button
+                        type="submit"
+                        className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition duration-150"
+                    >
+                        Entrar
+                    </button>
+                </form>
+            </div>
         </div>
     );
 };
