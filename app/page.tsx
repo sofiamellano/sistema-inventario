@@ -37,9 +37,10 @@ export default function Home() {
   useEffect(() => {
     const usuario = localStorage.getItem("usuario");
     if (!usuario) {
-      window.location.replace("/login");
+      window.location.replace("/inventario/login/");
     }
   }, []);
+  // Redirección eliminada, ahora se maneja en app.jsx con modal y cuenta regresiva
   const [activeSection, setActiveSection] = useState("dashboard")
   const [usuario, setUsuario] = useState<string | null>(null);
   useEffect(() => {
