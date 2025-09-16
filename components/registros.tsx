@@ -115,6 +115,7 @@ export default function Registros() {
     })
   }
 
+  // Exportar a Excel xlsx SheetJS
   const exportarExcel = () => {
     const wsData = [
       [

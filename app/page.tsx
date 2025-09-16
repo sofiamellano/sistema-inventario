@@ -13,7 +13,6 @@ import TiposResponsables from "@/components/tipos-responsables"
 import Comprobantes from "@/components/comprobantes"
 import Entradas from "@/components/entradas"
 import Salidas from "@/components/salidas"
-// Importar el componente de registros
 import Registros from "@/components/registros"
 import Reportes from "@/components/reportes"
 
@@ -37,7 +36,6 @@ const sectionTitles = {
 export default function Home() {
   const [activeSection, setActiveSection] = useState("dashboard")
 
-  // Actualizar la función renderContent para incluir el componente de registros
   const renderContent = () => {
     switch (activeSection) {
       case "dashboard":
@@ -57,7 +55,7 @@ export default function Home() {
       case "comprobantes":
         return <Comprobantes />
       case "movimientos":
-        return <Entradas /> // Por defecto mostrar entradas
+        return <Entradas /> 
       case "entradas":
         return <Entradas />
       case "salidas":
