@@ -38,7 +38,7 @@ export default function AuthGuard() {
       if (res.success) {
         localStorage.setItem("usuario", res.usuario || user);
         localStorage.setItem("idusuario", String(res.idusuario || ""));
-        router.push("/inventario");
+                router.push("/inventario");
       } else {
         setError(res.error || "Usuario o contraseña incorrectos");
       }
