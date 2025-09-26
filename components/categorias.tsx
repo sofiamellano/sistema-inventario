@@ -127,6 +127,7 @@ export default function Categorias() {
   const categoriasFiltradas = categorias
     .filter(c => c.deleted !== 1)
     .filter(c => c.categoria.toLowerCase().includes(busqueda.toLowerCase()))
+    .sort((a, b) => a.categoria.localeCompare(b.categoria))
 
   if (loading) return <div className="p-6">Cargando categorías...</div>
 

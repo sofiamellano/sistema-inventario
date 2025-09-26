@@ -153,7 +153,7 @@ export default function Proveedores() {
       proveedor.proveedor.toLowerCase().includes(busqueda.toLowerCase()) ||
       (proveedor.direccion && proveedor.direccion.toLowerCase().includes(busqueda.toLowerCase())) ||
       proveedor.telefono.includes(busqueda),
-  )
+  ).sort((a, b) => a.proveedor.localeCompare(b.proveedor))
 
   if (loading) {
     return <div className="p-6">Cargando proveedores...</div>

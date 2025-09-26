@@ -199,13 +199,14 @@ export default function Articulos() {
   }
 
   const articulosFiltrados = articulos
-    .filter((a) => a.deleted !== 1) // ✅ filtrar los eliminados
+    .filter((a) => a.deleted !== 1)
     .filter((articulo) => {
       const matchCategoria = !filtros.categoria || articulo.idcategoria.toString() === filtros.categoria
       const matchBusqueda =
         !filtros.busqueda || articulo.articulo.toLowerCase().includes(filtros.busqueda.toLowerCase())
       return matchCategoria && matchBusqueda
     })
+    .sort((a, b) => a.articulo.localeCompare(b.articulo));
 
   if (loading) return <div className="p-6">Cargando artículos...</div>
 

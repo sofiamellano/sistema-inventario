@@ -83,7 +83,7 @@ export default function Clientes() {
     cliente.cliente.toLowerCase().includes(filtroClientes.toLowerCase()) ||
     cliente.dni?.toLowerCase().includes(filtroClientes.toLowerCase()) ||
     cliente.localidad?.toLowerCase().includes(filtroClientes.toLowerCase())
-  )
+  ).sort((a, b) => a.cliente.localeCompare(b.cliente))
 
   const limpiarFormulario = () => {
     setFormData({
