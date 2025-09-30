@@ -25,7 +25,64 @@ export async function login(data: LoginPayload): Promise<LoginResponse> {
 const API_URL = "https://i20.com.ar/api_sofia/api.php";
 
 // Interfaces tipadas
+// Configuración de empresa
+export interface ConfigPayload {
+  empresa: string;
+  responsable: string;
+  cuit: string;
+  direccion: string;
+  telefono: string;
+  condicion_fiscal: string;
+}
 
+export interface ConfigOut extends ConfigPayload {
+  idconfig: number;
+  deleted?: number;
+}
+
+// Funciones
+export async function getConfig(): Promise<ConfigOut[]> {
+  const url = `${API_URL}?config&llave=isp`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error al obtener configuración");
+  return res.json();
+}
+
+export async function createConfig(data: ConfigPayload): Promise<ConfigOut> {
+  const url = `${API_URL}?config&llave=isp`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al crear configuración");
+  return res.json();
+}
+
+export async function updateConfig(
+  id: number,
+  data: ConfigPayload
+): Promise<{ success: boolean }> {
+  const url = `${API_URL}?config&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Error al actualizar configuración");
+  return res.json();
+}
+
+export async function deleteConfig(
+  id: number
+): Promise<{ deleted: boolean }> {
+  const url = `${API_URL}?config&id=${id}&llave=isp`;
+  const res = await fetch(url, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Error al eliminar configuración");
+  return res.json();
+}
 export interface CategoriaPayload {
   categoria: string;
 }

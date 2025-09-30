@@ -21,6 +21,7 @@ import {
   type ArticuloOut,
 } from "@/lib/api"
 import { generarReportePDF, generarReporteInventarioPDF, generarReporteComparativoPDF } from "@/lib/pdf-generator"
+import { getConfig, ConfigOut } from "@/lib/api"
 
 interface FiltrosReporte {
   tipo: "todos" | "entradas" | "salidas"
@@ -32,8 +33,8 @@ interface FiltrosReporte {
   incluirGraficos: boolean
   incluirResumen: boolean
 }
-
 export default function Reportes() {
+  const [empresa, setEmpresa] = useState<ConfigOut | null>(null)
   const [registros, setRegistros] = useState<RegistroConDetalles[]>([])
   const [proveedores, setProveedores] = useState<ProveedorOut[]>([])
   const [categorias, setCategorias] = useState<CategoriaOut[]>([])
@@ -55,6 +56,9 @@ export default function Reportes() {
 
   useEffect(() => {
     cargarDatos()
+    getConfig().then(data => {
+      if (data.length > 0) setEmpresa(data[0])
+    })
   }, [])
 
   const cargarDatos = async () => {
@@ -151,6 +155,7 @@ export default function Reportes() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* ...el resto de la pantalla de reportes sin datos de empresa visibles... */}
       {/* Header */}
       <div className="flex items-center space-x-2">
         <FileText className="w-8 h-8 text-purple-600" />

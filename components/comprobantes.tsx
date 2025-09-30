@@ -17,10 +17,12 @@ import {
   type ClienteOut
 } from "@/lib/api"
 import { Plus, Edit, Trash2, Search, FileText, Users } from "lucide-react"
+import { getConfig, ConfigOut } from "@/lib/api"
 import { toast } from "react-toastify"
 
 export default function Comprobantes() {
   const [comprobantes, setComprobantes] = useState<ComprobanteOut[]>([])
+  const [empresa, setEmpresa] = useState<ConfigOut | null>(null)
   const [clientes, setClientes] = useState<ClienteOut[]>([])
   const [filtroComprobantes, setFiltroComprobantes] = useState("")
   const [comprobanteSeleccionado, setComprobanteSeleccionado] = useState<ComprobanteOut | null>(null)
@@ -33,6 +35,9 @@ export default function Comprobantes() {
 
   useEffect(() => {
     cargarDatos()
+    getConfig().then(data => {
+      if (data.length > 0) setEmpresa(data[0])
+    })
   }, [])
 
   const cargarDatos = async () => {
@@ -172,6 +177,7 @@ export default function Comprobantes() {
 
   return (
     <div className="space-y-6">
+      {/* ...el resto de la pantalla de comprobantes sin datos de empresa visibles... */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <h1 className="text-3xl font-bold ml-4">Tipos de Comprobantes</h1>

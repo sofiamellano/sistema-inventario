@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getConfig, ConfigOut } from "@/lib/api"
 import {
   Warehouse,
   BarChart3,
@@ -65,6 +66,7 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: "tipos-responsables", label: "Tipos Responsables", icon: UserCheck },
       { id: "comprobantes", label: "Comprobantes", icon: FileText },
+      { id: "configuraciones", label: "Configuraciones", icon: Settings },
     ]
   },
   { id: "reportes", label: "Reportes", icon: PieChart },
@@ -76,7 +78,13 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   const [hasActiveToast, setHasActiveToast] = useState(false)
   const [expandedItems, setExpandedItems] = useState<string[]>([])
 
-  // Detectar si hay toasts activos
+  // Datos de empresa
+  const [empresa, setEmpresa] = useState<ConfigOut | null>(null)
+  useEffect(() => {
+    getConfig().then(data => {
+      if (data.length > 0) setEmpresa(data[0])
+    })
+  }, [])
   useEffect(() => {
     const checkForActiveToasts = () => {
       const toastElements = document.querySelectorAll('[data-testid="toast"]')
@@ -158,10 +166,14 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}
       >
-        {/* Logo */}
-        <div className="p-4 flex items-center space-x-2 border-b border-gray-700">
-          <Warehouse className="text-blue-400 w-8 h-8" />
-          {!isCollapsed && <span className="text-xl font-bold">InventarioDUO</span>}
+        {/* Logo y empresa */}
+        <div className="p-4 flex flex-col space-y-1 border-b border-gray-700">
+          <div className="flex items-center space-x-2">
+            <Warehouse className="text-blue-400 w-8 h-8" />
+            {!isCollapsed && empresa && (
+              <span className="text-xl font-bold">{empresa.empresa}</span>
+            )}
+          </div>
         </div>
 
         {/* Navigation */}

@@ -1,7 +1,7 @@
 "use client";
 import { login } from "@/lib/api";
 import React, { useState } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 interface LoginProps {
     onLogin?: (username: string, password: string) => void;
@@ -27,7 +27,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     // Guardar datos de sesión en localStorage
                     localStorage.setItem("usuario", data.usuario || username);
                     localStorage.setItem("idusuario", String(data.idusuario || ""));
-                    router.push("/inventario");
+                    router.push("/");
                 } else {
                     setError(data.error || 'Usuario o contraseña incorrectos.');
                 }

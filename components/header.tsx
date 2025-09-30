@@ -1,16 +1,25 @@
 "use client"
 
+
+import { useEffect, useState } from "react"
+import { getConfig, ConfigOut } from "@/lib/api"
 import { Search, Bell } from "lucide-react"
 
 interface HeaderProps {
   title: string
 }
-
 export default function Header({ title }: HeaderProps) {
+  const [empresa, setEmpresa] = useState<ConfigOut | null>(null)
+  useEffect(() => {
+    getConfig().then(data => {
+      if (data.length > 0) setEmpresa(data[0])
+    })
+  }, [])
   return (
     <header className="bg-white shadow-sm p-4 flex justify-between items-center">
-      <div className="flex items-center">
+      <div className="flex flex-col items-start">
         <h1 className="text-xl font-semibold text-gray-800 ml-16 md:ml-0">{title}</h1>
+          {/* Eliminado subtítulo con nombre de empresa debajo del nombre de la página */}
       </div>
       <div className="flex items-center space-x-4">
         <div className="relative hidden md:block">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactElement } from "react"
 import {
   Package, Truck, RefreshCw, TrendingUp, TrendingDown, BarChart3
 } from "lucide-react"
@@ -24,7 +24,9 @@ import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend
 } from "recharts"
-import type { ReactElement } from "react"
+
+import { getConfig, ConfigOut } from "@/lib/api"
+import { useCallback } from "react"
 
 const chartConfig = {
   entradas: { label: "Entradas", color: "hsl(var(--chart-1))" },
@@ -34,9 +36,9 @@ const chartConfig = {
 }
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"]
-
 export default function Dashboard() {
   const [stats, setStats] = useState({ articulos: 0, proveedores: 0, movimientos: 0 })
+  const [empresa, setEmpresa] = useState<ConfigOut | null>(null)
   const [articulosBajoStock, setArticulosBajoStock] = useState<ArticuloOut[]>([])
   const [movimientosPorMes, setMovimientosPorMes] = useState<any[]>([])
   const [stockPorCategoria, setStockPorCategoria] = useState<any[]>([])
@@ -46,6 +48,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     cargarDatos()
+    getConfig().then(data => {
+      if (data.length > 0) setEmpresa(data[0])
+    })
   }, [])
 
   const cargarDatos = async () => {
@@ -149,6 +154,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* ...el resto del dashboard sin datos de empresa visibles... */}
       {/* Tarjetas de estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard icon={<Package />} label="Artículos" value={stats.articulos} hint="Total registrados" color="blue" />

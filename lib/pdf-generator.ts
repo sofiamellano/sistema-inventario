@@ -1,7 +1,7 @@
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import type { RegistroConDetalles, ProveedorOut, CategoriaOut, ArticuloOut } from "./api"
-import { obtenerArticulos } from "./api"
+import { obtenerArticulos, getConfig, ConfigOut } from "./api"
 
 // Extender el tipo jsPDF para incluir autoTable - necesario para TypeScript
 declare module "jspdf" {
@@ -23,23 +23,34 @@ interface FiltrosReporte {
 }
 
 // Función que configura el encabezado estándar de todos los PDFs
-const configurarPDF = (doc: jsPDF, titulo: string) => {
-  // Configurar fuente base
+const configurarPDF = async (doc: jsPDF, titulo: string) => {
   doc.setFont("helvetica")
+  // Obtener datos de empresa
+  let empresa: ConfigOut | null = null
+  try {
+    const config = await getConfig()
+    if (config.length > 0) empresa = config[0]
+  } catch {}
 
-  // Título principal de la aplicación
+  // Título principal de la aplicación y empresa
   doc.setFontSize(20)
   doc.setTextColor(40, 40, 40)
-  doc.text("InventarioDUO", 20, 25)
+  doc.text(empresa?.empresa || "InventarioDUO", 20, 25)
+  doc.setFontSize(10)
+  doc.setTextColor(60, 60, 60)
+  if (empresa) {
+    doc.text(`CUIT: ${empresa.cuit} | Responsable: ${empresa.responsable} | ${empresa.condicion_fiscal}`, 20, 32)
+    doc.text(`Dirección: ${empresa.direccion} | Tel: ${empresa.telefono}`, 20, 38)
+  }
 
   // Título específico del reporte
   doc.setFontSize(16)
   doc.setTextColor(60, 60, 60)
-  doc.text(titulo, 20, 35)
+  doc.text(titulo, 20, 45)
 
   // Línea separadora visual
   doc.setDrawColor(200, 200, 200)
-  doc.line(20, 40, 190, 40)
+  doc.line(20, 50, 190, 50)
 
   // Fecha y hora de generación del reporte
   doc.setFontSize(10)
@@ -47,10 +58,10 @@ const configurarPDF = (doc: jsPDF, titulo: string) => {
   doc.text(
     `Generado el: ${new Date().toLocaleDateString("es-ES")} a las ${new Date().toLocaleTimeString("es-ES")}`,
     20,
-    50,
+    56,
   )
 
-  return 60 // Retorna la posición Y donde debe comenzar el contenido
+  return 66 // Retorna la posición Y donde debe comenzar el contenido
 }
 
 // Función que agrega pie de página con numeración y marca de la aplicación
@@ -73,7 +84,7 @@ export const generarReportePDF = async (
   articulos: ArticuloOut[],
 ) => {
   const doc = new jsPDF({ orientation: 'landscape' })
-  let yPosition = configurarPDF(doc, "Reporte de Movimientos de Inventario")
+  let yPosition = await configurarPDF(doc, "Reporte de Movimientos de Inventario")
 
   // SECCIÓN 1: Mostrar los filtros aplicados en el reporte
   doc.setFontSize(12)
@@ -270,13 +281,13 @@ export const generarReporteInventarioPDF = async (
   proveedores: ProveedorOut[],
 ) => {
   const doc = new jsPDF()
-  let yPosition = configurarPDF(doc, "Reporte de Estado de Inventario")
+  let yPosition = await configurarPDF(doc, "Reporte de Estado de Inventario")
 
   // Título de la sección
   doc.setFontSize(12)
   doc.setTextColor(40, 40, 40)
   doc.text("Estado Actual del Inventario:", 20, yPosition)
-  yPosition += 15
+  yPosition = yPosition + 15
 
   // Obtener datos actuales del inventario desde la API
   let articulos = await obtenerArticulos()
@@ -323,7 +334,7 @@ export const generarReporteInventarioPDF = async (
   autoTable(doc, {
     head: [columnas],
     body: filas,
-    startY: yPosition,
+  startY: yPosition,
     styles: {
       fontSize: 9,
       cellPadding: 3,
@@ -381,7 +392,7 @@ export const generarReporteComparativoPDF = async (
   proveedores: ProveedorOut[],
 ) => {
   const doc = new jsPDF()
-  let yPosition = configurarPDF(doc, "Reporte Comparativo de Movimientos")
+  let yPosition = await configurarPDF(doc, "Reporte Comparativo de Movimientos")
 
   // Separar y analizar entradas vs salidas
   const entradas = registros.filter((r) => r.tipo_movimiento === "ENTRADA")
@@ -392,7 +403,7 @@ export const generarReporteComparativoPDF = async (
   doc.setFontSize(12)
   doc.setTextColor(40, 40, 40)
   doc.text("Análisis Comparativo:", 20, yPosition)
-  yPosition += 15
+  yPosition = yPosition + 15
 
   // Tabla comparativa principal
   const datosComparativos = [
@@ -419,7 +430,7 @@ export const generarReporteComparativoPDF = async (
 
   autoTable(doc, {
     body: datosComparativos,
-    startY: yPosition,
+  startY: yPosition,
     styles: {
       fontSize: 10,
       cellPadding: 4,

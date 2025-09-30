@@ -15,6 +15,7 @@ import Entradas from "@/components/entradas"
 import Salidas from "@/components/salidas"
 import Registros from "@/components/registros"
 import Reportes from "@/components/reportes"
+import ConfigEmpresa from "@/components/config-empresa"
 
 
 const sectionTitles = {
@@ -31,6 +32,7 @@ const sectionTitles = {
   salidas: "Salidas",
   registros: "Registros",
   reportes: "Reportes",
+  configuraciones: "Configuraciones",
 }
 
 export default function Home() {
@@ -76,6 +78,8 @@ export default function Home() {
         return <Registros />
       case "reportes":
         return <Reportes />
+      case "configuraciones":
+        return <ConfigEmpresa />
       default:
         return <Dashboard />
     }
