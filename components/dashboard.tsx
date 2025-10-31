@@ -49,7 +49,9 @@ export default function Dashboard() {
   useEffect(() => {
     cargarDatos()
     getConfig().then(data => {
-      if (data.length > 0) setEmpresa(data[0])
+      const list = Array.isArray(data) ? data : (data && (data as any).data ? (data as any).data : [])
+      if (!Array.isArray(list)) console.warn('getConfig returned unexpected type in dashboard', data)
+      if (list.length > 0) setEmpresa(list[0])
     })
   }, [])
 
@@ -63,8 +65,12 @@ export default function Dashboard() {
         obtenerCategorias(),
       ])
 
-      const articulosActivos = articulos.filter(a => a.deleted !== 1)
-      const categoriasActivas = categorias.filter(c => c.deleted !== 1)
+  const articulosList = Array.isArray(articulos) ? articulos : []
+  const categoriasList = Array.isArray(categorias) ? categorias : []
+  if (!Array.isArray(articulos)) console.warn('obtenerArticulos returned unexpected type', articulos)
+  if (!Array.isArray(categorias)) console.warn('obtenerCategorias returned unexpected type', categorias)
+  const articulosActivos = articulosList.filter(a => a.deleted !== 1)
+  const categoriasActivas = categoriasList.filter(c => c.deleted !== 1)
 
       setStats({
         articulos: articulosActivos.length,
@@ -72,7 +78,8 @@ export default function Dashboard() {
         movimientos: registros.length,
       })
 
-      setArticulosBajoStock(bajoStock.filter(a => a.deleted !== 1))
+  const bajoStockList = Array.isArray(bajoStock) ? bajoStock : []
+  setArticulosBajoStock(bajoStockList.filter(a => a.deleted !== 1))
 
       procesarMovimientosPorMes(registros)
       procesarStockPorCategoria(articulosActivos, categoriasActivas)
@@ -88,8 +95,9 @@ export default function Dashboard() {
   const procesarMovimientosPorMes = (registros: RegistroConDetalles[]) => {
     const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
     const datos = meses.map((mes, index) => {
-      const entradas = registros.filter((r) => new Date(r.fecha).getMonth() === index && r.tipo_movimiento === "ENTRADA").length
-      const salidas = registros.filter((r) => new Date(r.fecha).getMonth() === index && r.tipo_movimiento === "SALIDA").length
+  const registrosList = Array.isArray(registros) ? registros : []
+  const entradas = registrosList.filter((r) => new Date(r.fecha).getMonth() === index && r.tipo_movimiento === "ENTRADA").length
+  const salidas = registrosList.filter((r) => new Date(r.fecha).getMonth() === index && r.tipo_movimiento === "SALIDA").length
       return { mes, entradas, salidas, total: entradas + salidas }
     })
     setMovimientosPorMes(datos)
@@ -97,7 +105,8 @@ export default function Dashboard() {
 
   const procesarStockPorCategoria = (articulos: ArticuloOut[], categorias: CategoriaOut[]) => {
     const datos = categorias.map((categoria) => {
-      const articulosCategoria = articulos.filter((a) => a.idcategoria === categoria.idcategoria)
+  const articulosList2 = Array.isArray(articulos) ? articulos : []
+  const articulosCategoria = articulosList2.filter((a) => a.idcategoria === categoria.idcategoria)
       return {
         categoria: categoria.categoria,
         stock: articulosCategoria.reduce((sum, a) => sum + Number(a.stock_actual), 0),
@@ -110,7 +119,8 @@ export default function Dashboard() {
 
   const procesarValorInventario = (articulos: ArticuloOut[], categorias: CategoriaOut[]) => {
     const datos = categorias.map((categoria) => {
-      const articulosCategoria = articulos.filter((a) => a.idcategoria === categoria.idcategoria)
+  const articulosList3 = Array.isArray(articulos) ? articulos : []
+  const articulosCategoria = articulosList3.filter((a) => a.idcategoria === categoria.idcategoria)
       return {
         name: categoria.categoria,
         value: articulosCategoria.reduce((sum, a) => sum + Number(a.stock_actual) * Number(a.precio_venta), 0),
@@ -127,9 +137,10 @@ export default function Dashboard() {
       const fecha = new Date()
       fecha.setDate(fecha.getDate() - i)
       const fechaStr = fecha.toISOString().split("T")[0]
-      const movimientosDia = registros.filter((r) => r.fecha === fechaStr)
-      const entradas = movimientosDia.filter((r) => r.tipo_movimiento === "ENTRADA")
-      const salidas = movimientosDia.filter((r) => r.tipo_movimiento === "SALIDA")
+  const registrosList2 = Array.isArray(registros) ? registros : []
+  const movimientosDia = registrosList2.filter((r) => r.fecha === fechaStr)
+  const entradas = movimientosDia.filter((r) => r.tipo_movimiento === "ENTRADA")
+  const salidas = movimientosDia.filter((r) => r.tipo_movimiento === "SALIDA")
       
       // CORRECCIÓN: Sumar el total de los detalles de cada registro
       const totalEntradas = entradas.reduce((sum, r) => {

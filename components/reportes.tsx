@@ -57,19 +57,30 @@ export default function Reportes() {
   useEffect(() => {
     cargarDatos()
     getConfig().then(data => {
-      if (data.length > 0) setEmpresa(data[0])
+      const list = Array.isArray(data) ? data : (data && (data as any).data ? (data as any).data : [])
+      if (!Array.isArray(list)) console.warn('getConfig returned unexpected type in reportes', data)
+      if (list.length > 0) setEmpresa(list[0])
     })
   }, [])
 
   const cargarDatos = async () => {
     try {
       setLoading(true)
-      const [registrosData, proveedoresData, categoriasData, articulosData] = await Promise.all([
-        obtenerRegistrosConDetalles(),
-        obtenerProveedores(),
-        obtenerCategorias(),
-        obtenerArticulos(),
-      ])
+        const [registrosDataRaw, proveedoresDataRaw, categoriasDataRaw, articulosDataRaw] = await Promise.all([
+          obtenerRegistrosConDetalles(),
+          obtenerProveedores(),
+          obtenerCategorias(),
+          obtenerArticulos(),
+        ])
+
+        const registrosData = Array.isArray(registrosDataRaw) ? registrosDataRaw : []
+        const proveedoresData = Array.isArray(proveedoresDataRaw) ? proveedoresDataRaw : []
+        const categoriasData = Array.isArray(categoriasDataRaw) ? categoriasDataRaw : []
+        const articulosData = Array.isArray(articulosDataRaw) ? articulosDataRaw : []
+        if (!Array.isArray(registrosDataRaw)) console.warn('obtenerRegistrosConDetalles returned', registrosDataRaw)
+        if (!Array.isArray(proveedoresDataRaw)) console.warn('obtenerProveedores returned', proveedoresDataRaw)
+        if (!Array.isArray(categoriasDataRaw)) console.warn('obtenerCategorias returned', categoriasDataRaw)
+        if (!Array.isArray(articulosDataRaw)) console.warn('obtenerArticulos returned', articulosDataRaw)
       setRegistros(registrosData)
       setProveedores(proveedoresData)
       setCategorias(categoriasData)
@@ -82,25 +93,25 @@ export default function Reportes() {
   }
 
   const aplicarFiltros = () => {
-    let resultado = [...registros]
+    let resultado = Array.isArray(registros) ? [...registros] : []
 
     // Filtrar por tipo
     if (filtros.tipo !== "todos") {
       const tipoFiltrado = filtros.tipo === "entradas" ? "ENTRADA" : "SALIDA"
-      resultado = resultado.filter((registro) => registro.tipo_movimiento === tipoFiltrado)
+      resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => registro.tipo_movimiento === tipoFiltrado)
     }
 
     // Filtrar por fecha
     if (filtros.fechaDesde) {
-      resultado = resultado.filter((registro) => new Date(registro.fecha) >= new Date(filtros.fechaDesde))
+      resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => new Date(registro.fecha) >= new Date(filtros.fechaDesde))
     }
     if (filtros.fechaHasta) {
-      resultado = resultado.filter((registro) => new Date(registro.fecha) <= new Date(filtros.fechaHasta))
+      resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => new Date(registro.fecha) <= new Date(filtros.fechaHasta))
     }
 
     // Filtrar por proveedor
     if (filtros.proveedor && filtros.proveedor !== "all") {
-      resultado = resultado.filter((registro) => registro.idproveedor?.toString() === filtros.proveedor)
+      resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => registro.idproveedor?.toString() === filtros.proveedor)
     }
 
     return resultado
@@ -144,8 +155,9 @@ export default function Reportes() {
   }
 
   const registrosFiltrados = aplicarFiltros()
-  const totalEntradas = registrosFiltrados.filter((r) => r.tipo_movimiento === "ENTRADA")
-  const totalSalidas = registrosFiltrados.filter((r) => r.tipo_movimiento === "SALIDA")
+  const registrosFiltradosList = Array.isArray(registrosFiltrados) ? registrosFiltrados : []
+  const totalEntradas = registrosFiltradosList.filter((r) => r.tipo_movimiento === "ENTRADA")
+  const totalSalidas = registrosFiltradosList.filter((r) => r.tipo_movimiento === "SALIDA")
   const valorTotalEntradas = totalEntradas.reduce((sum, r) => sum + Number(r.total || 0), 0)
   const valorTotalSalidas = totalSalidas.reduce((sum, r) => sum + Number(r.total || 0), 0)
 

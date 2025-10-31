@@ -316,9 +316,11 @@ export default function Salidas() {
 
   const articuloSeleccionado = articulos.find((a) => a.idarticulo === nuevoDetalle.idarticulo || a.idarticulo === Number(nuevoDetalle.idarticulo) || Number(a.idarticulo) === nuevoDetalle.idarticulo)
 
-  const articulosFiltrados = salidaData.destino
-    ? articulos.filter((a) => {
-        const proveedor = proveedores.find((p) => p.proveedor === salidaData.destino);
+      const articulosList = Array.isArray(articulos) ? articulos : []
+      const proveedoresList = Array.isArray(proveedores) ? proveedores : []
+      const articulosFiltrados = salidaData.destino
+    ? articulosList.filter((a) => {
+        const proveedor = proveedoresList.find((p) => p.proveedor === salidaData.destino);
         return proveedor && a.idproveedor === proveedor.idproveedor;
       })
     : [];
@@ -648,7 +650,7 @@ export default function Salidas() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {articulos
+                {(Array.isArray(articulos) ? articulos : [])
                   .filter((a) => Number(a.stock_actual) <= 5)
                   .slice(0, 3)
                   .map((articulo) => (
@@ -659,7 +661,7 @@ export default function Salidas() {
                       </Badge>
                     </div>
                   ))}
-                {articulos.filter((a) => Number(a.stock_actual) <= 5).length === 0 && (
+                {(Array.isArray(articulos) ? articulos : []).filter((a) => Number(a.stock_actual) <= 5).length === 0 && (
                   <p className="text-xs text-gray-500">No hay artículos con bajo stock</p>
                 )}
               </div>

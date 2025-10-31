@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   obtenerArticulos,
+  obtenerArticulosPaginados,
   obtenerCategorias,
   obtenerProveedores,
   crearArticulo,
@@ -24,6 +25,11 @@ export default function Articulos() {
   const [categorias, setCategorias] = useState<CategoriaOut[]>([])
   const [proveedores, setProveedores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [limit, setLimit] = useState(10)
   const [showModal, setShowModal] = useState(false)
   const [editingArticulo, setEditingArticulo] = useState<ArticuloOut | null>(null)
   const [filtros, setFiltros] = useState({ categoria: "", busqueda: "" })
@@ -48,11 +54,27 @@ export default function Articulos() {
 
   useEffect(() => {
     cargarDatos()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, limit])
 
   const cargarDatos = async () => {
     try {
-      const [articulosData, categoriasData, proveedoresData] = await Promise.all([obtenerArticulos(), obtenerCategorias(), obtenerProveedores()])
+      // Usar la versión paginada del endpoint
+      const [articulosPaginado, categoriasData, proveedoresData] = await Promise.all([
+        obtenerArticulosPaginados(paginaActual, limit),
+        obtenerCategorias(),
+        obtenerProveedores(),
+      ])
+
+      // articulosPaginado tiene forma { data: ArticuloOut[], pagination: { current_page, per_page, total, total_pages, has_next, has_prev } }
+      const articulosData = Array.isArray(articulosPaginado?.data) ? articulosPaginado.data : []
+      const pagination = articulosPaginado?.pagination || null
+      if (pagination) {
+        setPaginaActual(Number(pagination.current_page) || 1)
+        setTotalPaginas(Number(pagination.total_pages) || 1)
+        setHasNext(Boolean(pagination.has_next))
+        setHasPrev(Boolean(pagination.has_prev))
+      }
       setArticulos(articulosData)
       setCategorias(categoriasData)
       setProveedores(proveedoresData)
@@ -198,7 +220,10 @@ export default function Articulos() {
     setShowModal(true)
   }
 
-  const articulosFiltrados = articulos
+  const articulosList = Array.isArray(articulos) ? articulos : []
+  const categoriasList = Array.isArray(categorias) ? categorias : []
+  const proveedoresList = Array.isArray(proveedores) ? proveedores : []
+  const articulosFiltrados = articulosList
     .filter((a) => a.deleted !== 1)
     .filter((articulo) => {
       const matchCategoria = !filtros.categoria || articulo.idcategoria.toString() === filtros.categoria
@@ -256,6 +281,17 @@ export default function Articulos() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Paginación */}
+      <div className="flex items-center justify-center space-x-4 mt-4">
+        <Button onClick={() => { if (hasPrev) { setPaginaActual((p) => Math.max(1, p - 1)); }} } disabled={!hasPrev}>
+          &lt; Anterior
+        </Button>
+        <div className="text-sm text-gray-700">Página {paginaActual} de {totalPaginas}</div>
+        <Button onClick={() => { if (hasNext) { setPaginaActual((p) => p + 1); }} } disabled={!hasNext}>
+          Siguiente &gt;
+        </Button>
+      </div>
 
       {/* Tabla de artículos */}
       <Card>

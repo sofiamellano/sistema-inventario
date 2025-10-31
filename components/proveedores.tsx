@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   obtenerProveedores,
+  obtenerProveedoresPaginados,
   crearProveedor,
   actualizarProveedor,
   eliminarProveedor,
@@ -33,6 +34,11 @@ import { Badge } from "@/components/ui/badge"
 export default function Proveedores() {
   const [proveedores, setProveedores] = useState<ProveedorOut[]>([])
   const [loading, setLoading] = useState(true)
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [limit, setLimit] = useState(10)
   const [showModal, setShowModal] = useState(false)
   const [editingProveedor, setEditingProveedor] = useState<ProveedorOut | null>(null)
   const [busqueda, setBusqueda] = useState("")
@@ -44,13 +50,22 @@ export default function Proveedores() {
 
   useEffect(() => {
     cargarProveedores()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, limit])
 
   const cargarProveedores = async () => {
     try {
       setLoading(true)
-      const data = await obtenerProveedores()
-      setProveedores(data)
+      const proveedoresP = await obtenerProveedoresPaginados(paginaActual, limit)
+      const proveedoresData = Array.isArray(proveedoresP?.data) ? proveedoresP.data : []
+      const pagination = proveedoresP?.pagination || null
+      if (pagination) {
+        setPaginaActual(Number(pagination.current_page) || 1)
+        setTotalPaginas(Number(pagination.total_pages) || 1)
+        setHasNext(Boolean(pagination.has_next))
+        setHasPrev(Boolean(pagination.has_prev))
+      }
+      setProveedores(proveedoresData)
     } catch (error) {
       console.error("Error al cargar proveedores:", error)
     } finally {
@@ -148,7 +163,8 @@ export default function Proveedores() {
 
 
 
-  const proveedoresFiltrados = proveedores.filter(
+  const proveedoresList = Array.isArray(proveedores) ? proveedores : []
+  const proveedoresFiltrados = proveedoresList.filter(
     (proveedor) =>
       proveedor.proveedor.toLowerCase().includes(busqueda.toLowerCase()) ||
       (proveedor.direccion && proveedor.direccion.toLowerCase().includes(busqueda.toLowerCase())) ||
@@ -188,6 +204,17 @@ export default function Proveedores() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Paginación */}
+      <div className="flex items-center justify-center space-x-4 mt-4">
+        <Button onClick={() => { if (hasPrev) setPaginaActual((p) => Math.max(1, p - 1)); }} disabled={!hasPrev}>
+          &lt; Anterior
+        </Button>
+        <div className="text-sm text-gray-700">Página {paginaActual} de {totalPaginas}</div>
+        <Button onClick={() => { if (hasNext) setPaginaActual((p) => p + 1); }} disabled={!hasNext}>
+          Siguiente &gt;
+        </Button>
+      </div>
 
       {/* Tabla de proveedores */}
       <Card>

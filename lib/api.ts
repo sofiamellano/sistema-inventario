@@ -39,6 +39,16 @@ export interface PaginatedResponse<T> {
   pagination: PaginationInfo;
 }
 
+// Helper para normalizar respuestas de lista: puede venir como array directo,
+// como { data: [...] } o como un objeto único. Siempre retorna un array.
+async function parseListResponse<T>(res: Response): Promise<T[]> {
+  const json = await res.json();
+  if (Array.isArray(json)) return json as T[];
+  if (json && Array.isArray((json as any).data)) return (json as any).data as T[];
+  if (json && typeof json === 'object') return [json as T];
+  return [];
+}
+
 // Interfaces tipadas
 // Configuración de empresa
 export interface ConfigPayload {
@@ -229,8 +239,7 @@ export async function obtenerCategorias(): Promise<CategoriaOut[]> {
   const url = `${API_URL}?categorias&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener categorías");
-  const response: PaginatedResponse<CategoriaOut> = await res.json();
-  return response.data;
+  return await parseListResponse<CategoriaOut>(res);
 }
 
 export async function obtenerCategoriasPaginadas(page: number = 1, limit: number = 10): Promise<PaginatedResponse<CategoriaOut>> {
@@ -284,8 +293,7 @@ export async function obtenerArticulos(): Promise<ArticuloOut[]> {
   const url = `${API_URL}?articulos&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener artículos");
-  const response: PaginatedResponse<ArticuloOut> = await res.json();
-  return response.data;
+  return await parseListResponse<ArticuloOut>(res);
 }
 
 export async function obtenerArticulosPaginados(page: number = 1, limit: number = 10): Promise<PaginatedResponse<ArticuloOut>> {
@@ -299,15 +307,18 @@ export async function obtenerArticuloPorId(id: number): Promise<ArticuloOut[]> {
   const url = `${API_URL}?articulos&id=${id}&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener artículo");
-  return res.json();
+  const data = await res.json();
+  // El backend puede devolver un objeto (fila) o un arreglo; normalizamos a arreglo
+  if (Array.isArray(data)) return data as ArticuloOut[];
+  if (data == null) return [];
+  return [data as ArticuloOut];
 }
 
 export async function obtenerArticulosBajoStock(): Promise<ArticuloOut[]> {
   const url = `${API_URL}?articulos&id=bajo-stock&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener artículos con bajo stock");
-  const response: PaginatedResponse<ArticuloOut> = await res.json();
-  return response.data;
+  return await parseListResponse<ArticuloOut>(res);
 }
 
 export async function obtenerArticulosBajoStockPaginados(page: number = 1, limit: number = 10): Promise<PaginatedResponse<ArticuloOut>> {
@@ -361,8 +372,7 @@ export async function obtenerProveedores(): Promise<ProveedorOut[]> {
   const url = `${API_URL}?proveedores&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener proveedores");
-  const response: PaginatedResponse<ProveedorOut> = await res.json();
-  return response.data;
+  return await parseListResponse<ProveedorOut>(res);
 }
 
 export async function obtenerProveedoresPaginados(page: number = 1, limit: number = 10): Promise<PaginatedResponse<ProveedorOut>> {
@@ -376,7 +386,10 @@ export async function obtenerProveedorPorId(id: number): Promise<ProveedorOut[]>
   const url = `${API_URL}?proveedores&id=${id}&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener proveedor");
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data as ProveedorOut[];
+  if (data == null) return [];
+  return [data as ProveedorOut];
 }
 
 export async function crearProveedor(data: ProveedorPayload): Promise<ProveedorOut> {
@@ -416,8 +429,7 @@ export async function obtenerRegistros(): Promise<RegistroOut[]> {
   const url = `${API_URL}?registros&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener registros");
-  const response: PaginatedResponse<RegistroOut> = await res.json();
-  return response.data;
+  return await parseListResponse<RegistroOut>(res);
 }
 
 export async function obtenerRegistrosPaginados(page: number = 1, limit: number = 10): Promise<PaginatedResponse<RegistroOut>> {
@@ -466,8 +478,7 @@ export async function obtenerDetalles(): Promise<DetalleOut[]> {
   const url = `${API_URL}?detalles&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener detalles");
-  const response: PaginatedResponse<DetalleOut> = await res.json();
-  return response.data;
+  return await parseListResponse<DetalleOut>(res);
 }
 
 export async function obtenerDetallesPaginados(page: number = 1, limit: number = 10): Promise<PaginatedResponse<DetalleOut>> {
@@ -708,8 +719,7 @@ export async function obtenerClientes(): Promise<ClienteOut[]> {
   const url = `${API_URL}?clientes&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener clientes");
-  const response: PaginatedResponse<ClienteOut> = await res.json();
-  return response.data;
+  return await parseListResponse<ClienteOut>(res);
 }
 
 export async function obtenerClientesPaginados(page: number = 1, limit: number = 10): Promise<PaginatedResponse<ClienteOut>> {
@@ -765,8 +775,7 @@ export async function obtenerComprobantes(): Promise<ComprobanteOut[]> {
   const url = `${API_URL}?comprobantes&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener comprobantes");
-  const response: PaginatedResponse<ComprobanteOut> = await res.json();
-  return response.data;
+  return await parseListResponse<ComprobanteOut>(res);
 }
 
 export async function obtenerComprobantesPaginados(page: number = 1, limit: number = 10): Promise<PaginatedResponse<ComprobanteOut>> {
@@ -820,8 +829,7 @@ export async function obtenerListasPrecios(): Promise<ListaPrecioOut[]> {
   const url = `${API_URL}?listasprecios&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener listas de precios");
-  const response: PaginatedResponse<ListaPrecioOut> = await res.json();
-  return response.data;
+  return await parseListResponse<ListaPrecioOut>(res);
 }
 
 export async function obtenerListasPreciosPaginadas(page: number = 1, limit: number = 10): Promise<PaginatedResponse<ListaPrecioOut>> {
@@ -875,8 +883,7 @@ export async function obtenerTiposResponsables(): Promise<TipoResponsableOut[]> 
   const url = `${API_URL}?tiposresponsables&llave=isp`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Error al obtener tipos de responsables");
-  const response: PaginatedResponse<TipoResponsableOut> = await res.json();
-  return response.data;
+  return await parseListResponse<TipoResponsableOut>(res);
 }
 
 export async function obtenerTiposResponsablesPaginados(page: number = 1, limit: number = 10): Promise<PaginatedResponse<TipoResponsableOut>> {

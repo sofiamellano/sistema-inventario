@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { 
-  obtenerTiposResponsables, 
+  obtenerTiposResponsablesPaginados, 
   crearTipoResponsable, 
   actualizarTipoResponsable, 
   eliminarTipoResponsable,
@@ -26,6 +26,11 @@ export default function TiposResponsables() {
   const [tipoSeleccionado, setTipoSeleccionado] = useState<TipoResponsableOut | null>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [cargando, setCargando] = useState(true)
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [limit, setLimit] = useState(10)
 
   const [formData, setFormData] = useState<TipoResponsablePayload>({
     tiporesponsable: "",
@@ -33,15 +38,24 @@ export default function TiposResponsables() {
 
   useEffect(() => {
     cargarDatos()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, limit])
 
   const cargarDatos = async () => {
     try {
       setCargando(true)
-      const [tiposData, clientesData] = await Promise.all([
-        obtenerTiposResponsables(),
+      const [tiposResp, clientesData] = await Promise.all([
+        obtenerTiposResponsablesPaginados(paginaActual, limit),
         obtenerClientes()
       ])
+      const tiposData = Array.isArray(tiposResp?.data) ? tiposResp.data : []
+      const pagination = tiposResp?.pagination || null
+      if (pagination) {
+        setPaginaActual(Number(pagination.current_page) || 1)
+        setTotalPaginas(Number(pagination.total_pages) || 1)
+        setHasNext(Boolean(pagination.has_next))
+        setHasPrev(Boolean(pagination.has_prev))
+      }
       setTiposResponsables(tiposData)
       setClientes(clientesData)
     } catch (error) {
@@ -52,7 +66,8 @@ export default function TiposResponsables() {
     }
   }
 
-  const tiposFiltrados = tiposResponsables.filter(tipo =>
+  const tiposList = Array.isArray(tiposResponsables) ? tiposResponsables : []
+  const tiposFiltrados = tiposList.filter(tipo =>
     tipo.tiporesponsable.toLowerCase().includes(filtroTipos.toLowerCase())
   )
 
@@ -107,7 +122,8 @@ export default function TiposResponsables() {
 
   const manejarEliminar = async (tipo: TipoResponsableOut) => {
     // Verificar si hay clientes usando este tipo de responsable
-    const clientesUsandoTipo = clientes.filter(cliente => cliente.idtiporesponsable === tipo.idtiporesponsable)
+  const clientesList = Array.isArray(clientes) ? clientes : []
+  const clientesUsandoTipo = clientesList.filter(cliente => cliente.idtiporesponsable === tipo.idtiporesponsable)
     
     if (clientesUsandoTipo.length > 0) {
       toast.error(`No se puede eliminar el tipo "${tipo.tiporesponsable}" porque está siendo utilizado por ${clientesUsandoTipo.length} cliente(s)`)
@@ -161,8 +177,13 @@ export default function TiposResponsables() {
   }
 
   const contarClientesPorTipo = (idTipo: number) => {
-    return clientes.filter(cliente => cliente.idtiporesponsable === idTipo).length
+  const clientesList = Array.isArray(clientes) ? clientes : []
+  return clientesList.filter(cliente => cliente.idtiporesponsable === idTipo).length
   }
+
+  // Paginación helpers
+  const paginaAnterior = () => { if (hasPrev) setPaginaActual(p => Math.max(1, p - 1)) }
+  const paginaSiguiente = () => { if (hasNext) setPaginaActual(p => Math.min(totalPaginas, p + 1)) }
 
   if (cargando) {
     return (
@@ -293,6 +314,11 @@ export default function TiposResponsables() {
               )}
             </div>
           </CardContent>
+          <div className="flex items-center justify-center space-x-4 mt-4">
+            <Button onClick={paginaAnterior} disabled={!hasPrev}>Anterior</Button>
+            <div className="text-sm">Página {paginaActual} de {totalPaginas}</div>
+            <Button onClick={paginaSiguiente} disabled={!hasNext}>Siguiente</Button>
+          </div>
         </Card>
 
         <div className="space-y-4">

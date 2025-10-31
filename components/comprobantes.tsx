@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { 
-  obtenerComprobantes, 
+  obtenerComprobantesPaginados, 
   crearComprobante, 
   actualizarComprobante, 
   eliminarComprobante,
@@ -28,6 +28,11 @@ export default function Comprobantes() {
   const [comprobanteSeleccionado, setComprobanteSeleccionado] = useState<ComprobanteOut | null>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [cargando, setCargando] = useState(true)
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [limit, setLimit] = useState(10)
 
   const [formData, setFormData] = useState<ComprobantePayload>({
     comprobante: "",
@@ -38,15 +43,24 @@ export default function Comprobantes() {
     getConfig().then(data => {
       if (data.length > 0) setEmpresa(data[0])
     })
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, limit])
 
   const cargarDatos = async () => {
     try {
       setCargando(true)
-      const [comprobantesData, clientesData] = await Promise.all([
-        obtenerComprobantes(),
+      const [comprobantesResp, clientesData] = await Promise.all([
+        obtenerComprobantesPaginados(paginaActual, limit),
         obtenerClientes()
       ])
+      const comprobantesData = Array.isArray(comprobantesResp?.data) ? comprobantesResp.data : []
+      const pagination = comprobantesResp?.pagination || null
+      if (pagination) {
+        setPaginaActual(Number(pagination.current_page) || 1)
+        setTotalPaginas(Number(pagination.total_pages) || 1)
+        setHasNext(Boolean(pagination.has_next))
+        setHasPrev(Boolean(pagination.has_prev))
+      }
       setComprobantes(comprobantesData)
       setClientes(clientesData)
     } catch (error) {
@@ -57,7 +71,8 @@ export default function Comprobantes() {
     }
   }
 
-  const comprobantesFiltrados = comprobantes.filter(comprobante =>
+  const comprobantesList = Array.isArray(comprobantes) ? comprobantes : []
+  const comprobantesFiltrados = comprobantesList.filter(comprobante =>
     comprobante.comprobante.toLowerCase().includes(filtroComprobantes.toLowerCase())
   )
 
@@ -112,7 +127,8 @@ export default function Comprobantes() {
 
   const manejarEliminar = async (comprobante: ComprobanteOut) => {
     // Verificar si hay clientes usando este comprobante
-    const clientesUsandoComprobante = clientes.filter(cliente => cliente.idcomprobante === comprobante.idcomprobante)
+      const clientesList = Array.isArray(clientes) ? clientes : []
+      const clientesUsandoComprobante = clientesList.filter(cliente => cliente.idcomprobante === comprobante.idcomprobante)
     
     if (clientesUsandoComprobante.length > 0) {
       toast.error(`No se puede eliminar el comprobante "${comprobante.comprobante}" porque está siendo utilizado por ${clientesUsandoComprobante.length} cliente(s)`)
@@ -164,8 +180,13 @@ export default function Comprobantes() {
   }
 
   const contarClientesPorComprobante = (idComprobante: number) => {
-    return clientes.filter(cliente => cliente.idcomprobante === idComprobante).length
+    const clientesList = Array.isArray(clientes) ? clientes : []
+    return clientesList.filter(cliente => cliente.idcomprobante === idComprobante).length
   }
+
+  // Paginación helpers
+  const paginaAnterior = () => { if (hasPrev) setPaginaActual(p => Math.max(1, p - 1)) }
+  const paginaSiguiente = () => { if (hasNext) setPaginaActual(p => Math.min(totalPaginas, p + 1)) }
 
   if (cargando) {
     return (
@@ -299,6 +320,11 @@ export default function Comprobantes() {
               )}
             </div>
           </CardContent>
+        <div className="flex items-center justify-center space-x-4 mt-4">
+          <Button onClick={paginaAnterior} disabled={!hasPrev}>Anterior</Button>
+          <div className="text-sm">Página {paginaActual} de {totalPaginas}</div>
+          <Button onClick={paginaSiguiente} disabled={!hasNext}>Siguiente</Button>
+        </div>
         </Card>
       </div>
     </div>

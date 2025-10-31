@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { 
     obtenerClientes, 
+  obtenerClientesPaginados,
     crearCliente, 
     actualizarCliente, 
     eliminarCliente,
@@ -27,6 +28,11 @@ import { toast } from "react-toastify"
 
 export default function Clientes() {
   const [clientes, setClientes] = useState<ClienteOut[]>([])
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [limit, setLimit] = useState(10)
   const [tiposResponsables, setTiposResponsables] = useState<TipoResponsableOut[]>([])
   const [comprobantes, setComprobantes] = useState<ComprobanteOut[]>([])
   const [listasPrecios, setListasPrecios] = useState<ListaPrecioOut[]>([])
@@ -48,17 +54,26 @@ export default function Clientes() {
 
   useEffect(() => {
     cargarDatos()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, limit])
 
   const cargarDatos = async () => {
     try {
       setCargando(true)
-      const [clientesData, tiposData, comprobantesData, listasData] = await Promise.all([
-        obtenerClientes(),
+      const [clientesP, tiposData, comprobantesData, listasData] = await Promise.all([
+        obtenerClientesPaginados(paginaActual, limit),
         obtenerTiposResponsables(),
         obtenerComprobantes(),
         obtenerListasPrecios()
       ])
+      const clientesData = Array.isArray(clientesP?.data) ? clientesP.data : []
+      const pagination = clientesP?.pagination || null
+      if (pagination) {
+        setPaginaActual(Number(pagination.current_page) || 1)
+        setTotalPaginas(Number(pagination.total_pages) || 1)
+        setHasNext(Boolean(pagination.has_next))
+        setHasPrev(Boolean(pagination.has_prev))
+      }
       
       // Mapear IDs de comprobantes - si vienen con ID 0, usar ID 1 que es el real en BD
       const comprobantesCorregidos = comprobantesData.map(comp => ({
@@ -67,7 +82,7 @@ export default function Clientes() {
       }))
       
       
-      setClientes(clientesData)
+  setClientes(clientesData)
       setTiposResponsables(tiposData)
       setComprobantes(comprobantesCorregidos)
       setListasPrecios(listasData)
@@ -79,7 +94,8 @@ export default function Clientes() {
     }
   }
 
-  const clientesFiltrados = clientes.filter(cliente =>
+  const clientesList = Array.isArray(clientes) ? clientes : []
+  const clientesFiltrados = clientesList.filter(cliente =>
     cliente.cliente.toLowerCase().includes(filtroClientes.toLowerCase()) ||
     cliente.dni?.toLowerCase().includes(filtroClientes.toLowerCase()) ||
     cliente.localidad?.toLowerCase().includes(filtroClientes.toLowerCase())

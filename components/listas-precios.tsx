@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge"
 import { 
   obtenerListasPrecios, 
+  obtenerListasPreciosPaginadas,
   crearListaPrecio, 
   actualizarListaPrecio, 
   eliminarListaPrecio,
@@ -22,6 +23,11 @@ import { toast } from "react-toastify"
 export default function ListasPrecios() {
   const [listasPrecios, setListasPrecios] = useState<ListaPrecioOut[]>([])
   const [clientes, setClientes] = useState<ClienteOut[]>([])
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [limit, setLimit] = useState(10)
   const [filtroListas, setFiltroListas] = useState("")
   const [listaSeleccionada, setListaSeleccionada] = useState<ListaPrecioOut | null>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -33,15 +39,24 @@ export default function ListasPrecios() {
 
   useEffect(() => {
     cargarDatos()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, limit])
 
   const cargarDatos = async () => {
     try {
       setCargando(true)
-      const [listasData, clientesData] = await Promise.all([
-        obtenerListasPrecios(),
+      const [listasP, clientesData] = await Promise.all([
+        obtenerListasPreciosPaginadas(paginaActual, limit),
         obtenerClientes()
       ])
+      const listasData = Array.isArray(listasP?.data) ? listasP.data : []
+      const pagination = listasP?.pagination || null
+      if (pagination) {
+        setPaginaActual(Number(pagination.current_page) || 1)
+        setTotalPaginas(Number(pagination.total_pages) || 1)
+        setHasNext(Boolean(pagination.has_next))
+        setHasPrev(Boolean(pagination.has_prev))
+      }
       setListasPrecios(listasData)
       setClientes(clientesData)
     } catch (error) {
@@ -52,7 +67,8 @@ export default function ListasPrecios() {
     }
   }
 
-  const listasFiltradas = listasPrecios.filter(lista =>
+  const listasList = Array.isArray(listasPrecios) ? listasPrecios : []
+  const listasFiltradas = listasList.filter(lista =>
     lista.listaprecio.toLowerCase().includes(filtroListas.toLowerCase())
   )
 
@@ -107,62 +123,36 @@ export default function ListasPrecios() {
 
   const manejarEliminar = async (lista: ListaPrecioOut) => {
     // Verificar si hay clientes usando esta lista de precios
-    const clientesUsandoLista = clientes.filter(cliente => cliente.idlistaprecio === lista.idlistasprecios)
-    
+    const clientesList = Array.isArray(clientes) ? clientes : []
+    const clientesUsandoLista = clientesList.filter(cliente => cliente.idlistaprecio === lista.idlistasprecios)
+
     if (clientesUsandoLista.length > 0) {
       toast.error(`No se puede eliminar la lista "${lista.listaprecio}" porque está siendo utilizada por ${clientesUsandoLista.length} cliente(s)`)
       return
     }
 
-    toast.info(
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">¿Eliminar lista?</h3>
-            <p className="text-sm mb-4">
-              ¿Estás seguro de que deseas eliminar la lista "{lista.listaprecio}"? 
-              Esta acción no se puede deshacer.
-            </p>
-            <div className="flex space-x-2 justify-center">
-              <button
-                onClick={() => {
-                  toast.dismiss()
-                  toast.promise(
-                    eliminarListaPrecio(lista.idlistasprecios).then(() => cargarDatos()),
-                    {
-                      pending: 'Eliminando lista...',
-                      success: `Lista "${lista.listaprecio}" eliminada correctamente`,
-                      error: 'Error al eliminar la lista',
-                    }
-                  )
-                }}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-              >
-                Sí, eliminar
-              </button>
-              <button
-                onClick={() => toast.dismiss()}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>,
-          {
-            position: "top-center",
-            autoClose: false,
-            closeOnClick: false,
-            draggable: false,
-            closeButton: false,
-            style: {
-              minWidth: '400px',
-              maxWidth: '500px'
-            }
-          }
-        )
+    // Confirmación simple
+    const confirmar = confirm(`¿Estás seguro de que deseas eliminar la lista "${lista.listaprecio}"? Esta acción no se puede deshacer.`)
+    if (!confirmar) return
+
+    try {
+      await eliminarListaPrecio(lista.idlistasprecios)
+      toast.success(`Lista "${lista.listaprecio}" eliminada correctamente`)
+      await cargarDatos()
+    } catch (error) {
+      toast.error('Error al eliminar la lista')
+      console.error(error)
+    }
   }
 
   const contarClientesPorLista = (idLista: number) => {
-    return clientes.filter(cliente => cliente.idlistaprecio === idLista).length
+  const clientesList = Array.isArray(clientes) ? clientes : []
+  return clientesList.filter(cliente => cliente.idlistaprecio === idLista).length
   }
+
+  // Paginación helpers
+  const paginaAnterior = () => { if (hasPrev) setPaginaActual(p => Math.max(1, p - 1)) }
+  const paginaSiguiente = () => { if (hasNext) setPaginaActual(p => Math.min(totalPaginas, p + 1)) }
 
   if (cargando) {
     return (

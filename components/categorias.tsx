@@ -7,7 +7,7 @@ import { toast } from "react-toastify"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
-  obtenerCategorias,
+  obtenerCategoriasPaginadas,
   crearCategoria,
   actualizarCategoria,
   eliminarCategoria,
@@ -21,6 +21,11 @@ import { Label } from "@/components/ui/label"
 export default function Categorias() {
   const [categorias, setCategorias] = useState<CategoriaOut[]>([])
   const [loading, setLoading] = useState(true)
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [limit, setLimit] = useState(10)
   const [showModal, setShowModal] = useState(false)
   const [editingCategoria, setEditingCategoria] = useState<CategoriaOut | null>(null)
   const [busqueda, setBusqueda] = useState("")
@@ -28,12 +33,21 @@ export default function Categorias() {
 
   useEffect(() => {
     cargarCategorias()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaActual, limit])
 
   const cargarCategorias = async () => {
     try {
       setLoading(true)
-      const data = await obtenerCategorias()
+      const resp = await obtenerCategoriasPaginadas(paginaActual, limit)
+      const data = Array.isArray(resp?.data) ? resp.data : []
+      const pagination = resp?.pagination || null
+      if (pagination) {
+        setPaginaActual(Number(pagination.current_page) || 1)
+        setTotalPaginas(Number(pagination.total_pages) || 1)
+        setHasNext(Boolean(pagination.has_next))
+        setHasPrev(Boolean(pagination.has_prev))
+      }
       setCategorias(data)
     } catch (error) {
       console.error("Error al cargar categorías:", error)
@@ -124,10 +138,15 @@ export default function Categorias() {
 
 
 
-  const categoriasFiltradas = categorias
+  const categoriasList = Array.isArray(categorias) ? categorias : []
+  const categoriasFiltradas = categoriasList
     .filter(c => c.deleted !== 1)
     .filter(c => c.categoria.toLowerCase().includes(busqueda.toLowerCase()))
     .sort((a, b) => a.categoria.localeCompare(b.categoria))
+
+  // Paginación helpers
+  const paginaAnterior = () => { if (hasPrev) setPaginaActual(p => Math.max(1, p - 1)) }
+  const paginaSiguiente = () => { if (hasNext) setPaginaActual(p => Math.min(totalPaginas, p + 1)) }
 
   if (loading) return <div className="p-6">Cargando categorías...</div>
 
@@ -159,6 +178,11 @@ export default function Categorias() {
             </div>
           </div>
         </CardContent>
+        <div className="flex items-center justify-center space-x-4 mt-4">
+          <Button onClick={paginaAnterior} disabled={!hasPrev}>Anterior</Button>
+          <div className="text-sm">Página {paginaActual} de {totalPaginas}</div>
+          <Button onClick={paginaSiguiente} disabled={!hasNext}>Siguiente</Button>
+        </div>
       </Card>
 
       {/* Tabla de categorías */}

@@ -63,23 +63,23 @@ export default function Registros() {
 
     // Filtrar por tipo
     if (filtros.tipo !== "todos") {
-      resultado = resultado.filter((registro) => registro.tipo_movimiento.toLowerCase() === filtros.tipo.toLowerCase())
+  resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => registro.tipo_movimiento.toLowerCase() === filtros.tipo.toLowerCase())
     }
 
     // Filtrar por fecha desde
     if (filtros.fechaDesde) {
-      resultado = resultado.filter((registro) => new Date(registro.fecha) >= new Date(filtros.fechaDesde))
+  resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => new Date(registro.fecha) >= new Date(filtros.fechaDesde))
     }
 
     // Filtrar por fecha hasta
     if (filtros.fechaHasta) {
-      resultado = resultado.filter((registro) => new Date(registro.fecha) <= new Date(filtros.fechaHasta))
+  resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => new Date(registro.fecha) <= new Date(filtros.fechaHasta))
     }
 
     // Filtrar por búsqueda
     if (filtros.busqueda) {
       const busqueda = filtros.busqueda.toLowerCase()
-      resultado = resultado.filter(
+  resultado = (Array.isArray(resultado) ? resultado : []).filter(
         (registro) =>
           registro.nro_comprobante.toString().includes(busqueda) ||
           (registro.proveedor && registro.proveedor.toLowerCase().includes(busqueda)) ||
@@ -261,7 +261,7 @@ export default function Registros() {
             <div>
               <p className="text-gray-500 text-sm">Entradas</p>
               <h3 className="text-2xl font-bold">
-                {filteredRegistros.filter((r) => r.tipo_movimiento === "ENTRADA").length}
+                {(Array.isArray(filteredRegistros) ? filteredRegistros : []).filter((r) => r.tipo_movimiento === "ENTRADA").length}
               </h3>
             </div>
           </CardContent>
@@ -274,7 +274,7 @@ export default function Registros() {
             <div>
               <p className="text-gray-500 text-sm">Salidas</p>
               <h3 className="text-2xl font-bold">
-                {filteredRegistros.filter((r) => r.tipo_movimiento === "SALIDA").length}
+                {(Array.isArray(filteredRegistros) ? filteredRegistros : []).filter((r) => r.tipo_movimiento === "SALIDA").length}
               </h3>
             </div>
           </CardContent>
