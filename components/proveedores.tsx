@@ -205,16 +205,6 @@ export default function Proveedores() {
         </CardContent>
       </Card>
 
-      {/* Paginación */}
-      <div className="flex items-center justify-center space-x-4 mt-4">
-        <Button onClick={() => { if (hasPrev) setPaginaActual((p) => Math.max(1, p - 1)); }} disabled={!hasPrev}>
-          &lt; Anterior
-        </Button>
-        <div className="text-sm text-gray-700">Página {paginaActual} de {totalPaginas}</div>
-        <Button onClick={() => { if (hasNext) setPaginaActual((p) => p + 1); }} disabled={!hasNext}>
-          Siguiente &gt;
-        </Button>
-      </div>
 
       {/* Tabla de proveedores */}
       <Card>
@@ -293,6 +283,17 @@ export default function Proveedores() {
           </div>
         </CardContent>
       </Card>
+
+{/* Paginación */}
+      <div className="flex items-center justify-center space-x-4 mt-4">
+        <Button onClick={() => { if (hasPrev) { setPaginaActual((p) => Math.max(1, p - 1)); }} } disabled={!hasPrev}>
+          &lt; Anterior
+        </Button>
+        <div className="text-sm text-gray-700">Página {paginaActual} de {totalPaginas}</div>
+        <Button onClick={() => { if (hasNext) { setPaginaActual((p) => p + 1); }} } disabled={!hasNext}>
+          Siguiente &gt;
+        </Button>
+      </div>
 
       {/* Modal para crear/editar */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
