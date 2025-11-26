@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  obtenerRegistrosConDetalles,
+  obtenerRegistrosConDetallesPaginados,
   type RegistroConDetalles,
   obtenerProveedores,
   type ProveedorOut,
@@ -23,10 +23,14 @@ import * as XLSX from "xlsx"
 
 export default function Registros() {
   const [registros, setRegistros] = useState<RegistroConDetalles[]>([])
-  const [filteredRegistros, setFilteredRegistros] = useState<RegistroConDetalles[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedRegistro, setExpandedRegistro] = useState<number | null>(null)
   const [proveedores, setProveedores] = useState<ProveedorOut[]>([])
+  // Paginación
+  const [pagina, setPagina] = useState(1);
+  const [registrosPorPagina] = useState(25);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
 
   // Filtros
   const [filtros, setFiltros] = useState({
@@ -37,20 +41,42 @@ export default function Registros() {
   })
 
   useEffect(() => {
-    cargarRegistros()
-  }, [])
+    cargarRegistros(pagina, registrosPorPagina, filtros)
 
-  useEffect(() => {
-    aplicarFiltros()
-  }, [filtros, registros])
+  }, [pagina, registrosPorPagina, filtros])
 
-  const cargarRegistros = async () => {
+  const cargarRegistros = async (page = 1, limit = 10, filtrosObj = filtros) => {
     try {
       setLoading(true)
-      const [data, proveedoresData] = await Promise.all([obtenerRegistrosConDetalles(), obtenerProveedores()])
+      // Aquí podrías agregar filtros a la URL si tu backend los soporta
+      const [response, proveedoresData] = await Promise.all([
+        obtenerRegistrosConDetallesPaginados(page, limit),
+        obtenerProveedores()
+      ])
+      let data = response.data
+      // Filtros en frontend si el backend no los soporta
+      if (filtrosObj.tipo !== "todos") {
+        data = data.filter((registro) => registro.tipo_movimiento.toLowerCase() === filtrosObj.tipo.toLowerCase())
+      }
+      if (filtrosObj.fechaDesde) {
+        data = data.filter((registro) => new Date(registro.fecha) >= new Date(filtrosObj.fechaDesde))
+      }
+      if (filtrosObj.fechaHasta) {
+        data = data.filter((registro) => new Date(registro.fecha) <= new Date(filtrosObj.fechaHasta))
+      }
+      if (filtrosObj.busqueda) {
+        const busqueda = filtrosObj.busqueda.toLowerCase()
+        data = data.filter(
+          (registro) =>
+            registro.nro_comprobante.toString().includes(busqueda) ||
+            (registro.proveedor && registro.proveedor.toLowerCase().includes(busqueda)) ||
+            (registro.destino && registro.destino.toLowerCase().includes(busqueda))
+        )
+      }
       setRegistros(data)
-      setFilteredRegistros(data)
       setProveedores(proveedoresData)
+      setTotalPaginas(response.pagination.total_pages)
+      setTotalRegistros(response.pagination.total)
     } catch (error) {
       console.error("Error al cargar registros:", error)
     } finally {
@@ -58,37 +84,7 @@ export default function Registros() {
     }
   }
 
-  const aplicarFiltros = () => {
-    let resultado = [...registros]
-
-    // Filtrar por tipo
-    if (filtros.tipo !== "todos") {
-  resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => registro.tipo_movimiento.toLowerCase() === filtros.tipo.toLowerCase())
-    }
-
-    // Filtrar por fecha desde
-    if (filtros.fechaDesde) {
-  resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => new Date(registro.fecha) >= new Date(filtros.fechaDesde))
-    }
-
-    // Filtrar por fecha hasta
-    if (filtros.fechaHasta) {
-  resultado = (Array.isArray(resultado) ? resultado : []).filter((registro) => new Date(registro.fecha) <= new Date(filtros.fechaHasta))
-    }
-
-    // Filtrar por búsqueda
-    if (filtros.busqueda) {
-      const busqueda = filtros.busqueda.toLowerCase()
-  resultado = (Array.isArray(resultado) ? resultado : []).filter(
-        (registro) =>
-          registro.nro_comprobante.toString().includes(busqueda) ||
-          (registro.proveedor && registro.proveedor.toLowerCase().includes(busqueda)) ||
-          (registro.destino && registro.destino.toLowerCase().includes(busqueda)),
-      )
-    }
-
-    setFilteredRegistros(resultado)
-  }
+  // Los filtros ahora se aplican en cargarRegistros
 
   const resetFiltros = () => {
     setFiltros({
@@ -107,12 +103,29 @@ export default function Registros() {
     }
   }
 
+  // Corrige el desfase de fecha por zona horaria
   const formatFecha = (fecha: string) => {
+    if (!fecha) return "";
+    // Si viene en formato YYYY-MM-DD, parsear manualmente para evitar desfase
+    const partes = fecha.split("-");
+    if (partes.length === 3) {
+      // año, mes, día
+      const anio = parseInt(partes[0], 10);
+      const mes = parseInt(partes[1], 10) - 1; // Mes base 0
+      const dia = parseInt(partes[2], 10);
+      const date = new Date(anio, mes, dia);
+      return date.toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    }
+    // Si no, usar el parseo normal
     return new Date(fecha).toLocaleDateString("es-ES", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-    })
+    });
   }
 
   // Exportar a Excel xlsx SheetJS
@@ -131,7 +144,7 @@ export default function Registros() {
         "Total Detalle"
       ]
     ];
-    filteredRegistros.forEach((registro) => {
+    registros.forEach((registro: RegistroConDetalles) => {
       registro.detalles.forEach((detalle) => {
         wsData.push([
           String(registro.idregistro),
@@ -158,6 +171,9 @@ export default function Registros() {
   if (loading) {
     return <div className="p-6">Cargando historial de movimientos...</div>
   }
+
+  // Ya no se hace slice, la API devuelve la página correcta
+  const registrosPagina = registros;
 
   return (
     <div className="p-6 space-y-6">
@@ -249,7 +265,7 @@ export default function Registros() {
             </div>
             <div>
               <p className="text-gray-500 text-sm">Total Movimientos</p>
-              <h3 className="text-2xl font-bold">{filteredRegistros.length}</h3>
+              <h3 className="text-2xl font-bold">{registros.length}</h3>
             </div>
           </CardContent>
         </Card>
@@ -261,7 +277,7 @@ export default function Registros() {
             <div>
               <p className="text-gray-500 text-sm">Entradas</p>
               <h3 className="text-2xl font-bold">
-                {(Array.isArray(filteredRegistros) ? filteredRegistros : []).filter((r) => r.tipo_movimiento === "ENTRADA").length}
+                {registros.filter((r: RegistroConDetalles) => r.tipo_movimiento === "ENTRADA").length}
               </h3>
             </div>
           </CardContent>
@@ -274,7 +290,7 @@ export default function Registros() {
             <div>
               <p className="text-gray-500 text-sm">Salidas</p>
               <h3 className="text-2xl font-bold">
-                {(Array.isArray(filteredRegistros) ? filteredRegistros : []).filter((r) => r.tipo_movimiento === "SALIDA").length}
+                {registros.filter((r: RegistroConDetalles) => r.tipo_movimiento === "SALIDA").length}
               </h3>
             </div>
           </CardContent>
@@ -284,10 +300,10 @@ export default function Registros() {
       {/* Tabla de registros */}
       <Card>
         <CardHeader>
-          <CardTitle>Movimientos ({filteredRegistros.length})</CardTitle>
+          <CardTitle>Movimientos ({totalRegistros})</CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredRegistros.length > 0 ? (
+          {registrosPagina.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -305,7 +321,7 @@ export default function Registros() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRegistros.flatMap((registro) =>
+                  {registrosPagina.flatMap((registro) =>
                     registro.detalles.map((detalle) => (
                       <TableRow key={detalle.iddetalle}>
                         <TableCell>{registro.idregistro}</TableCell>
@@ -346,6 +362,17 @@ export default function Registros() {
           ) : (
             <div className="text-center py-8 text-gray-500">No se encontraron registros con los filtros aplicados</div>
           )}
+          {/* Controles de paginación */}
+          <div className="flex justify-center items-center mt-4 space-x-2">
+            <Button variant="outline" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={pagina === 1}>
+              Anterior
+            </Button>
+            <span>Página {pagina} de {totalPaginas}</span>
+            <Button variant="outline" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}>
+              Siguiente
+            </Button>
+            {/* Selector de registros por página eliminado, valor fijo en 25 */}
+          </div>
         </CardContent>
       </Card>
 
@@ -363,7 +390,7 @@ export default function Registros() {
             </TabsList>
             <TabsContent value="todos">
               <Accordion type="single" collapsible className="w-full">
-                {filteredRegistros.map((registro) => (
+                {registros.map((registro: RegistroConDetalles) => (
                   <AccordionItem key={registro.idregistro} value={registro.idregistro.toString()}>
                     <AccordionTrigger>
                       <div className="flex items-center space-x-4">
@@ -411,7 +438,7 @@ export default function Registros() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {registro.detalles.map((detalle) => (
+                              {registro.detalles.map((detalle: any) => (
                                 <TableRow key={detalle.iddetalle}>
                                   <TableCell>{detalle.articulo}</TableCell>
                                   <TableCell>{detalle.cantidad}</TableCell>
@@ -433,9 +460,9 @@ export default function Registros() {
             </TabsContent>
             <TabsContent value="entradas">
               <Accordion type="single" collapsible className="w-full">
-                {filteredRegistros
-                  .filter((r) => r.tipo_movimiento === "ENTRADA")
-                  .map((registro) => (
+                {registros
+                  .filter((r: RegistroConDetalles) => r.tipo_movimiento === "ENTRADA")
+                  .map((registro: RegistroConDetalles) => (
                     <AccordionItem key={registro.idregistro} value={registro.idregistro.toString()}>
                       <AccordionTrigger>
                         <div className="flex items-center space-x-4">
@@ -476,7 +503,7 @@ export default function Registros() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {registro.detalles.map((detalle) => (
+                                {registro.detalles.map((detalle: any) => (
                                   <TableRow key={detalle.iddetalle}>
                                     <TableCell>{detalle.articulo}</TableCell>
                                     <TableCell>{detalle.cantidad}</TableCell>
@@ -498,9 +525,9 @@ export default function Registros() {
             </TabsContent>
             <TabsContent value="salidas">
               <Accordion type="single" collapsible className="w-full">
-                {filteredRegistros
-                  .filter((r) => r.tipo_movimiento === "SALIDA")
-                  .map((registro) => (
+                {registros
+                  .filter((r: RegistroConDetalles) => r.tipo_movimiento === "SALIDA")
+                  .map((registro: RegistroConDetalles) => (
                     <AccordionItem key={registro.idregistro} value={registro.idregistro.toString()}>
                       <AccordionTrigger>
                         <div className="flex items-center space-x-4">
@@ -547,7 +574,7 @@ export default function Registros() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {registro.detalles.map((detalle) => (
+                                {registro.detalles.map((detalle: any) => (
                                   <TableRow key={detalle.iddetalle}>
                                     <TableCell>{detalle.articulo}</TableCell>
                                     <TableCell>{detalle.cantidad}</TableCell>

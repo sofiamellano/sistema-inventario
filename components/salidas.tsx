@@ -258,6 +258,7 @@ export default function Salidas() {
         proveedor: salidaData.destino, // Usar destino como proveedor
         fecha: salidaData.fecha, // Formato YYYY-MM-DD
         nro_comprobante: Number.parseInt(salidaData.nro_comprobante),
+        usuario: "sistema", // O el usuario real si está disponible
       }
 
       console.log("Payload del registro:", registroPayload)
@@ -267,6 +268,9 @@ export default function Salidas() {
       const salidaCreada = await crearRegistro(registroPayload)
 
       console.log("Registro creado:", salidaCreada)
+      if (!salidaCreada || !salidaCreada.idregistro) {
+        throw new Error("No se pudo crear el registro. Respuesta inesperada: " + JSON.stringify(salidaCreada));
+      }
 
       // Crear los detalles
       for (const detalle of detalles) {
@@ -308,7 +312,15 @@ export default function Salidas() {
       await cargarArticulos()
     } catch (error) {
       console.error("Error al guardar salida:", error)
-      toast.error("Error al guardar la salida: " + (error instanceof Error ? error.message : "Error desconocido"))
+      let mensaje = "Error al guardar la salida: ";
+      if (error instanceof Error) {
+        mensaje += error.message;
+      } else if (typeof error === "string") {
+        mensaje += error;
+      } else {
+        mensaje += JSON.stringify(error);
+      }
+      toast.error(mensaje)
     } finally {
       setSaving(false)
     }

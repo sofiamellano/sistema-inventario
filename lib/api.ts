@@ -1,3 +1,5 @@
+import { Console } from "console";
+
 // Login de usuario
 export interface LoginPayload {
   usuario: string;
@@ -157,6 +159,7 @@ export interface RegistroPayload {
   proveedor: string;
   fecha: string;
   nro_comprobante: number;
+  usuario: string;
 }
 
 export interface RegistroOut extends RegistroPayload {
@@ -455,6 +458,8 @@ export async function obtenerRegistrosConDetallesPaginados(page: number = 1, lim
 }
 
 export async function crearRegistro(data: RegistroPayload): Promise<RegistroOut> {
+  console.log("crear registro",data);
+  (data);
   const url = `${API_URL}?registros&llave=isp`;
   
   const res = await fetch(url, {
@@ -518,6 +523,7 @@ export async function crearEntrada(data: EntradaPayload): Promise<RegistroOut> {
     proveedor: data.proveedor,
     fecha: data.fecha,
     nro_comprobante: data.nro_comprobante,
+    usuario: (data as any).usuario || "sistema",
   };
 
   const url = `${API_URL}?registros&llave=isp`;
@@ -554,12 +560,13 @@ export interface SalidaPayload {
 
 export async function crearSalida(data: SalidaPayload): Promise<RegistroOut> {
   // Las salidas se crean como registros con datos específicos
-  const registroPayload: RegistroPayload = {
+  const registroPayload: any = {
     idproveedor: 0, // Para salidas no hay proveedor específico
     tipo_movimiento: data.tipo_movimiento,
     proveedor: data.destino, // Usamos el campo proveedor para almacenar el destino
     fecha: data.fecha,
     nro_comprobante: data.nro_comprobante,
+    usuario: (data as any).usuario || "sistema",
   };
 
   const url = `${API_URL}?registros&llave=isp`;
@@ -568,7 +575,14 @@ export async function crearSalida(data: SalidaPayload): Promise<RegistroOut> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(registroPayload),
   });
-  if (!res.ok) throw new Error("Error al crear salida");
+  if (!res.ok) {
+    let msg = "Error al crear salida";
+    try {
+      const err = await res.json();
+      if (err && err.error) msg += ": " + err.error;
+    } catch {}
+    throw new Error(msg);
+  }
   return res.json();
 }
 
